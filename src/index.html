@@ -131,15 +131,23 @@
     </div>
 
     <div class="filter-container">
-      <label for="object-type-filter">Filter by type: </label>
-      <select id="object-type-filter">
-        <option value="all">All Types</option>
-        <option value="blob">Blob</option>
-        <option value="tree">Tree</option>
-        <option value="commit">Commit</option>
-        <option value="tag">Tag</option>
-      </select>
-      <span id="object-count" class="object-count"></span>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+        <div>
+          <label for="object-type-filter">Filter by type: </label>
+          <select id="object-type-filter">
+            <option value="all">All Types</option>
+            <option value="blob">Blob</option>
+            <option value="tree">Tree</option>
+            <option value="commit">Commit</option>
+            <option value="tag">Tag</option>
+          </select>
+          <span id="object-count" class="object-count"></span>
+        </div>
+        <div>
+          <input type="text" id="search-input" placeholder="Search by hash or content..." style="padding: 5px; width: 250px;">
+          <button id="search-btn" style="margin-left: 5px;">Search</button>
+        </div>
+      </div>
     </div>
 
     <div class="objects-container">
@@ -164,6 +172,8 @@
     const refreshBtn = document.getElementById('refresh-btn');
     const objectTypeFilter = document.getElementById('object-type-filter');
     const objectCount = document.getElementById('object-count');
+    const searchInput = document.getElementById('search-input');
+    const searchBtn = document.getElementById('search-btn');
 
     // Global state
     let gitObjects = [];
@@ -198,7 +208,7 @@
           let type;
           if (mode === '40000') {
             type = 'tree';
-          } else if (mode.startsWith('100')) {
+          } else if (mode === '100644' || mode === '100664' || mode === '100755' || mode === '0644' || mode === '00644') {
             type = 'blob';
           } else if (mode === '160000') {
             type = 'commit'; // submodule
@@ -303,10 +313,22 @@
     // Render list of objects
     function renderObjectsList(objects) {
       const currentFilter = objectTypeFilter.value;
+      const searchTerm = searchInput.value.toLowerCase().trim();
 
-      const filteredObjects = currentFilter === 'all'
+      // Apply type filter
+      let filteredObjects = currentFilter === 'all'
         ? objects
         : objects.filter(obj => obj.type === currentFilter);
+
+      // Apply search filter if search term exists
+      if (searchTerm) {
+        filteredObjects = filteredObjects.filter(obj =>
+          // Search by hash
+          obj.hash.toLowerCase().includes(searchTerm) ||
+          // Search by content (limited for performance)
+          obj.content.toLowerCase().includes(searchTerm)
+        );
+      }
 
       objectCount.textContent = `(${filteredObjects.length} objects)`;
 
@@ -373,6 +395,17 @@
 
     objectTypeFilter.addEventListener('change', () => {
       renderObjectsList(gitObjects);
+    });
+
+    // Search functionality
+    searchBtn.addEventListener('click', () => {
+      renderObjectsList(gitObjects);
+    });
+
+    searchInput.addEventListener('keyup', (event) => {
+      if (event.key === 'Enter') {
+        renderObjectsList(gitObjects);
+      }
     });
 
     // Initial state
