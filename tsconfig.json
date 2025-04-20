@@ -7,7 +7,9 @@
     "esModuleInterop": true,
     "outDir": "./dist",
     "rootDir": "./src",
-    "sourceMap": true
+    "sourceMap": true,
+    "typeRoots": ["./node_modules/@types", "./src"],
+    "lib": ["DOM", "DOM.Iterable", "ESNext"]
   },
   "include": [
     "src/**/*"
