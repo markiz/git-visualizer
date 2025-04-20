@@ -116,7 +116,7 @@ function parseTreeContent(content: string): TreeEntry[] {
 
       // Determine type from mode
       let type: string;
-      if (mode === '40000') {
+      if (mode === '40000' || mode === '0000' || mode === '040000') {
         type = 'tree';
       } else if (mode === '100644' || mode === '100664' || mode === '100755' || mode === '0644' || mode === '00644') {
         type = 'blob';
