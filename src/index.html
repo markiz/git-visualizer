@@ -6,13 +6,377 @@
   <style>
     body {
       margin: 0;
-      padding: 0;
+      padding: 20px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      background-color: #f5f5f5;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    .status-bar {
+      background-color: #e0e0e0;
+      padding: 10px;
+      margin-bottom: 20px;
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .objects-container {
+      display: flex;
+      flex-direction: row;
+      gap: 20px;
+    }
+
+    .objects-list {
+      flex: 1;
+      max-height: 600px;
+      overflow-y: auto;
+      background-color: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px;
+    }
+
+    .object-details {
+      flex: 2;
+      max-height: 600px;
+      overflow-y: auto;
+      background-color: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px;
+    }
+
+    .object-item {
+      padding: 8px;
+      margin-bottom: 5px;
+      cursor: pointer;
+      border-bottom: 1px solid #eee;
+    }
+
+    .object-item:hover {
+      background-color: #f0f0f0;
+    }
+
+    .object-item.selected {
+      background-color: #e1f5fe;
+    }
+
+    .blob {
+      color: #2196F3;
+    }
+
+    .tree {
+      color: #4CAF50;
+    }
+
+    .commit {
+      color: #FF9800;
+    }
+
+    .tag {
+      color: #9C27B0;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      background-color: #f8f8f8;
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid #eee;
+      overflow-x: auto;
+      margin: 0;
+    }
+
+    button {
+      padding: 8px 16px;
+      background-color: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0b7dda;
+    }
+
+    .filter-container {
+      margin-bottom: 10px;
+    }
+
+    .object-count {
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <h1>Git Visualizer</h1>
-  <p>Welcome to the Git Visualizer!</p>
+  <div class="container">
+    <h1>Git Visualizer</h1>
+
+    <div class="status-bar">
+      <div id="repo-status">Checking repository...</div>
+      <button id="refresh-btn">Refresh</button>
+    </div>
+
+    <div class="filter-container">
+      <label for="object-type-filter">Filter by type: </label>
+      <select id="object-type-filter">
+        <option value="all">All Types</option>
+        <option value="blob">Blob</option>
+        <option value="tree">Tree</option>
+        <option value="commit">Commit</option>
+        <option value="tag">Tag</option>
+      </select>
+      <span id="object-count" class="object-count"></span>
+    </div>
+
+    <div class="objects-container">
+      <div class="objects-list" id="objects-list">
+        <p>Loading objects...</p>
+      </div>
+
+      <div class="object-details" id="object-details">
+        <p>Select an object to view its details</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Import required modules
+    const { ipcRenderer } = require('electron');
+
+    // DOM Elements
+    const repoStatus = document.getElementById('repo-status');
+    const objectsList = document.getElementById('objects-list');
+    const objectDetails = document.getElementById('object-details');
+    const refreshBtn = document.getElementById('refresh-btn');
+    const objectTypeFilter = document.getElementById('object-type-filter');
+    const objectCount = document.getElementById('object-count');
+
+    // Global state
+    let gitObjects = [];
+    let selectedObjectHash = null;
+
+    // Parse tree content for display
+    function parseTreeContent(content) {
+      try {
+        const entries = [];
+        let pos = 0;
+
+        while (pos < content.length) {
+          const spaceIndex = content.indexOf(' ', pos);
+          if (spaceIndex === -1) break;
+
+          const mode = content.substring(pos, spaceIndex);
+          pos = spaceIndex + 1;
+
+          const nullIndex = content.indexOf('\0', pos);
+          if (nullIndex === -1) break;
+
+          const name = content.substring(pos, nullIndex);
+          pos = nullIndex + 1;
+
+          // Extract 20-byte SHA-1 and convert to hex
+          const hash = Array.from(content.substring(pos, pos + 20))
+            .map(c => c.charCodeAt(0).toString(16).padStart(2, '0'))
+            .join('');
+          pos += 20;
+
+          // Determine type from mode
+          let type;
+          if (mode === '40000') {
+            type = 'tree';
+          } else if (mode.startsWith('100')) {
+            type = 'blob';
+          } else if (mode === '160000') {
+            type = 'commit'; // submodule
+          } else if (mode === '120000') {
+            type = 'blob';   // symlink
+          } else {
+            type = 'unknown';
+          }
+
+          entries.push({ mode, type, hash, name });
+        }
+
+        return entries;
+      } catch (error) {
+        console.error('Error parsing tree content:', error);
+        return [];
+      }
+    }
+
+    // Format commit content for display
+    function formatCommitContent(content) {
+      const lines = content.split('\n');
+      let html = '<div>';
+
+      // Extract headers and message
+      let i = 0;
+      for (; i < lines.length; i++) {
+        const line = lines[i];
+        if (line === '') break;
+
+        const spaceIndex = line.indexOf(' ');
+        if (spaceIndex !== -1) {
+          const key = line.substring(0, spaceIndex);
+          const value = line.substring(spaceIndex + 1);
+
+          if (key === 'tree' || key === 'parent') {
+            html += `<div><strong>${key}:</strong> <span class="tree">${value}</span></div>`;
+          } else {
+            html += `<div><strong>${key}:</strong> ${value}</div>`;
+          }
+        }
+      }
+
+      html += '<hr>';
+
+      // Add commit message
+      if (i < lines.length - 1) {
+        const message = lines.slice(i + 1).join('<br>');
+        html += `<div><strong>Message:</strong><br>${message}</div>`;
+      }
+
+      html += '</div>';
+      return html;
+    }
+
+    // Display object details
+    function showObjectDetails(object) {
+      let detailsHtml = `
+        <h3>Object: ${object.hash}</h3>
+        <div><strong>Type:</strong> <span class="${object.type}">${object.type}</span></div>
+        <div><strong>Size:</strong> ${object.size} bytes</div>
+        <hr>
+      `;
+
+      if (object.type === 'tree') {
+        const entries = parseTreeContent(object.content);
+        detailsHtml += '<h4>Tree Entries:</h4><ul>';
+
+        entries.forEach(entry => {
+          detailsHtml += `
+            <li>
+              <span class="${entry.type}">${entry.type}</span>
+              <strong>${entry.name}</strong>
+              (mode: ${entry.mode}, hash: ${entry.hash})
+            </li>
+          `;
+        });
+
+        detailsHtml += '</ul>';
+      } else if (object.type === 'commit') {
+        detailsHtml += formatCommitContent(object.content);
+      } else {
+        detailsHtml += `
+          <h4>Content:</h4>
+          <pre>${escapeHtml(object.content)}</pre>
+        `;
+      }
+
+      objectDetails.innerHTML = detailsHtml;
+    }
+
+    // Helper to escape HTML
+    function escapeHtml(unsafe) {
+      return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // Render list of objects
+    function renderObjectsList(objects) {
+      const currentFilter = objectTypeFilter.value;
+
+      const filteredObjects = currentFilter === 'all'
+        ? objects
+        : objects.filter(obj => obj.type === currentFilter);
+
+      objectCount.textContent = `(${filteredObjects.length} objects)`;
+
+      if (filteredObjects.length === 0) {
+        objectsList.innerHTML = '<p>No objects found.</p>';
+        return;
+      }
+
+      let listHtml = '';
+
+      filteredObjects.forEach(object => {
+        const isSelected = object.hash === selectedObjectHash;
+        listHtml += `
+          <div class="object-item ${isSelected ? 'selected' : ''}" data-hash="${object.hash}">
+            <span class="${object.type}">${object.type}</span>
+            <strong>${object.hash.substring(0, 8)}</strong>
+            <span>${object.size} bytes</span>
+          </div>
+        `;
+      });
+
+      objectsList.innerHTML = listHtml;
+
+      // Add click events
+      document.querySelectorAll('.object-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const hash = item.getAttribute('data-hash');
+          selectedObjectHash = hash;
+
+          // Update selection
+          document.querySelectorAll('.object-item').forEach(el => {
+            el.classList.remove('selected');
+          });
+          item.classList.add('selected');
+
+          // Show details
+          const selectedObject = gitObjects.find(obj => obj.hash === hash);
+          if (selectedObject) {
+            showObjectDetails(selectedObject);
+          }
+        });
+      });
+    }
+
+    // Receive Git objects from main process
+    ipcRenderer.on('git-objects', (event, objects) => {
+      gitObjects = objects;
+
+      if (objects.length === 0) {
+        repoStatus.textContent = 'No Git objects found.';
+        objectsList.innerHTML = '<p>No objects available.</p>';
+        return;
+      }
+
+      repoStatus.textContent = `Repository loaded with ${objects.length} objects.`;
+      renderObjectsList(objects);
+    });
+
+    // Event listeners
+    refreshBtn.addEventListener('click', () => {
+      repoStatus.textContent = 'Refreshing repository...';
+      ipcRenderer.send('refresh-git-objects');
+    });
+
+    objectTypeFilter.addEventListener('change', () => {
+      renderObjectsList(gitObjects);
+    });
+
+    // Initial state
+    repoStatus.textContent = 'Loading repository...';
+  </script>
 </body>
 </html>
