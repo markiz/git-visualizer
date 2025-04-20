@@ -1,0 +1,25 @@
+{
+  "name": "git-visualizer",
+  "version": "1.0.0",
+  "main": "dist/main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "npm run build && electron ./dist/main.js",
+    "build": "tsc",
+    "dev": "tsc -w"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "electron-reload": "^2.0.0-alpha.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.1",
+    "electron": "^35.2.0",
+    "electron-builder": "^26.0.12",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}
