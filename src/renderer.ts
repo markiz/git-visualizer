@@ -194,8 +194,10 @@ function formatCommitContent(content: string): string {
       const key = line.substring(0, spaceIndex);
       const value = line.substring(spaceIndex + 1);
 
-      if (key === 'tree' || key === 'parent') {
-        html += `<div><strong>${key}:</strong> <span class="tree">${value}</span></div>`;
+      if (key === 'tree') {
+        html += `<div><strong>${key}:</strong> <span class="tree"><a href="#" class="hash-link" data-hash="${value}">${value}</a></span></div>`;
+      } else if (key === 'parent') {
+        html += `<div><strong>${key}:</strong> <span class="commit"><a href="#" class="hash-link" data-hash="${value}">${value}</a></span></div>`;
       } else {
         html += `<div><strong>${key}:</strong> ${value}</div>`;
       }
@@ -232,7 +234,7 @@ function showObjectDetails(object: GitObject): void {
         <li>
           <span class="${entry.type}">${entry.type}</span>
           <strong>${entry.name}</strong>
-          (mode: ${entry.mode}, hash: ${entry.hash})
+          (mode: ${entry.mode}, hash: <a href="#" class="hash-link" data-hash="${entry.hash}">${entry.hash}</a>)
         </li>
       `;
     });
@@ -248,6 +250,39 @@ function showObjectDetails(object: GitObject): void {
   }
 
   objectDetails.innerHTML = detailsHtml;
+
+  // Add click event listeners for hash links
+  objectDetails.querySelectorAll('.hash-link').forEach(link => {
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      const hash = (event.currentTarget as HTMLElement).getAttribute('data-hash');
+      if (hash) {
+        // Find the object with this hash
+        const linkedObject = gitObjects.find(obj => obj.hash === hash);
+        if (linkedObject) {
+          // Update selected hash
+          selectedObjectHash = hash;
+
+          // Show details for the linked object
+          showObjectDetails(linkedObject);
+
+          // Update selection in the list if visible
+          const listItem = document.querySelector(`.object-item[data-hash="${hash}"]`);
+          if (listItem) {
+            document.querySelectorAll('.object-item').forEach(el => {
+              el.classList.remove('selected');
+            });
+            listItem.classList.add('selected');
+
+            // Scroll the item into view
+            listItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        } else {
+          alert(`Object with hash ${hash} not found in the current repository view.`);
+        }
+      }
+    });
+  });
 }
 
 // Helper to escape HTML
