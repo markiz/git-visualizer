@@ -158,6 +158,16 @@
             <option value="tag">Tag</option>
           </select>
           <span id="object-count" class="object-count"></span>
+
+          <label for="sort-select" style="margin-left: 15px;">Sort by: </label>
+          <select id="sort-select">
+            <option value="date-desc">Newest First</option>
+            <option value="none">None</option>
+            <option value="date-asc">Oldest First</option>
+            <option value="type">Type</option>
+            <option value="size-desc">Size (Largest First)</option>
+            <option value="size-asc">Size (Smallest First)</option>
+          </select>
         </div>
         <div>
           <input type="text" id="search-input" placeholder="Search by hash or content..." style="padding: 5px; width: 250px;">

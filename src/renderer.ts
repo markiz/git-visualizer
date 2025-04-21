@@ -33,6 +33,7 @@ let objectTypeFilter: HTMLSelectElement;
 let objectCount: HTMLElement;
 let searchInput: HTMLInputElement;
 let searchBtn: HTMLElement;
+let sortSelect: HTMLSelectElement;
 
 // Global state
 let gitObjects: GitObject[] = [];
@@ -57,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
   objectCount = document.getElementById('object-count')!;
   searchInput = document.getElementById('search-input') as HTMLInputElement;
   searchBtn = document.getElementById('search-btn')!;
+  sortSelect = document.getElementById('sort-select') as HTMLSelectElement;
 
   // Set up event listeners
   setupEventListeners();
@@ -84,6 +86,11 @@ function setupEventListeners(): void {
 
   // Type filter
   objectTypeFilter.addEventListener('change', () => {
+    renderObjectsList(gitObjects);
+  });
+
+  // Sort selector
+  sortSelect.addEventListener('change', () => {
     renderObjectsList(gitObjects);
   });
 
@@ -150,16 +157,21 @@ function parseTreeContent(content: string): TreeEntry[] {
       pos = nullIndex + 1;
 
       // Extract 20-byte SHA-1 and convert to hex
-      let hashBytes = [];
+      // Create a binary-to-hex array manually
+      const hashBytes: number[] = [];
       for (let j = 0; j < 20; j++) {
-        hashBytes.push(content.charCodeAt(pos + j) & 0xFF);
+        // Get byte value safely
+        const charCode = content.charCodeAt(pos + j);
+        // Use bitwise AND to get the lower 8 bits only
+        hashBytes.push(charCode & 0xFF);
       }
+      // Convert to hex string
       const hash = hashBytes.map(b => b.toString(16).padStart(2, '0')).join('');
       pos += 20;
 
       // Determine type from mode
       let type: string;
-      if (mode === '40000' || mode === '0000' || mode === '040000') {
+      if (mode === '40000' || mode === '040000' || mode === '0000') {
         type = 'tree';
       } else if (mode === '100644' || mode === '100664' || mode === '100755' || mode === '0644' || mode === '00644') {
         type = 'blob';
@@ -299,8 +311,12 @@ function showObjectDetails(object: GitObject): void {
       event.preventDefault();
       const hash = (event.currentTarget as HTMLElement).getAttribute('data-hash');
       if (hash) {
+        console.log('Clicked on hash:', hash);
+        // Debug logging to see what's available
+        console.log('First few available hashes:', gitObjects.slice(0, 5).map(obj => obj.hash));
+
         // Find the object with this hash
-        const linkedObject = gitObjects.find(obj => obj.hash === hash);
+        const linkedObject = gitObjects.find(obj => obj.hash.toLowerCase() === hash.toLowerCase());
         if (linkedObject) {
           // Update selected hash
           selectedObjectHash = hash;
@@ -343,6 +359,7 @@ function escapeHtml(unsafe: string): string {
 function renderObjectsList(objects: GitObject[]): void {
   const currentFilter = objectTypeFilter.value;
   const searchTerm = searchInput.value.toLowerCase().trim();
+  const sortMethod = sortSelect.value;
 
   // Apply type filter
   let filteredObjects = currentFilter === 'all'
@@ -359,6 +376,55 @@ function renderObjectsList(objects: GitObject[]): void {
     );
   }
 
+  // Apply sorting
+  if (sortMethod !== 'none') {
+    filteredObjects = [...filteredObjects]; // Create a copy to avoid modifying the original array
+
+    switch (sortMethod) {
+      case 'date-desc':
+        filteredObjects.sort((a, b) => {
+          // Only for commit objects that have parsedContent
+          if (a.type === 'commit' && b.type === 'commit') {
+            const dateA = a.parsedContent?.author ? extractDateFromAuthor(a.parsedContent.author) : 0;
+            const dateB = b.parsedContent?.author ? extractDateFromAuthor(b.parsedContent.author) : 0;
+            return dateB - dateA; // Newest first
+          }
+          // Keep non-commits at the end
+          if (a.type === 'commit') return -1;
+          if (b.type === 'commit') return 1;
+          return 0;
+        });
+        break;
+
+      case 'date-asc':
+        filteredObjects.sort((a, b) => {
+          // Only for commit objects that have parsedContent
+          if (a.type === 'commit' && b.type === 'commit') {
+            const dateA = a.parsedContent?.author ? extractDateFromAuthor(a.parsedContent.author) : 0;
+            const dateB = b.parsedContent?.author ? extractDateFromAuthor(b.parsedContent.author) : 0;
+            return dateA - dateB; // Oldest first
+          }
+          // Keep non-commits at the end
+          if (a.type === 'commit') return -1;
+          if (b.type === 'commit') return 1;
+          return 0;
+        });
+        break;
+
+      case 'type':
+        filteredObjects.sort((a, b) => a.type.localeCompare(b.type));
+        break;
+
+      case 'size-desc':
+        filteredObjects.sort((a, b) => b.size - a.size);
+        break;
+
+      case 'size-asc':
+        filteredObjects.sort((a, b) => a.size - b.size);
+        break;
+    }
+  }
+
   objectCount.textContent = `(${filteredObjects.length} objects)`;
 
   if (filteredObjects.length === 0) {
@@ -370,10 +436,20 @@ function renderObjectsList(objects: GitObject[]): void {
 
   filteredObjects.forEach(object => {
     const isSelected = object.hash === selectedObjectHash;
+    // Add date info for commits when sorting by date
+    let dateInfo = '';
+    if (object.type === 'commit' && (sortMethod === 'date-desc' || sortMethod === 'date-asc') && object.parsedContent?.author) {
+      const date = extractDateFromAuthor(object.parsedContent.author);
+      if (date) {
+        const formattedDate = new Date(date * 1000).toLocaleDateString();
+        dateInfo = ` <span style="color:#888;">${formattedDate}</span>`;
+      }
+    }
+
     listHtml += `
       <div class="object-item ${isSelected ? 'selected' : ''}" data-hash="${object.hash}">
         <span class="${object.type}">${object.type}</span>
-        <strong>${object.hash.substring(0, 8)}</strong>
+        <strong>${object.hash.substring(0, 8)}</strong>${dateInfo}
         <span>${object.size} bytes</span>
       </div>
     `;
@@ -386,20 +462,39 @@ function renderObjectsList(objects: GitObject[]): void {
     item.addEventListener('click', () => {
       const hash = item.getAttribute('data-hash');
       if (hash) {
-        selectedObjectHash = hash;
+        console.log('Clicked on hash:', hash);
+        // Debug logging to see what's available
+        console.log('First few available hashes:', gitObjects.slice(0, 5).map(obj => obj.hash));
 
-        // Update selection
-        document.querySelectorAll('.object-item').forEach(el => {
-          el.classList.remove('selected');
-        });
-        item.classList.add('selected');
+        // Find the object with this hash
+        const linkedObject = gitObjects.find(obj => obj.hash.toLowerCase() === hash.toLowerCase());
+        if (linkedObject) {
+          selectedObjectHash = hash;
 
-        // Show details
-        const selectedObject = gitObjects.find(obj => obj.hash === hash);
-        if (selectedObject) {
-          showObjectDetails(selectedObject);
+          // Update selection
+          document.querySelectorAll('.object-item').forEach(el => {
+            el.classList.remove('selected');
+          });
+          item.classList.add('selected');
+
+          // Show details
+          showObjectDetails(linkedObject);
+        } else {
+          console.error(`Object with hash ${hash} not found. Available hashes:`,
+            gitObjects.map(obj => obj.hash).slice(0, 10)); // Show first 10 hashes for debugging
+          alert(`Object with hash ${hash} not found in the current repository view.`);
         }
       }
     });
   });
+}
+
+// Helper function to extract timestamp from Git author string
+function extractDateFromAuthor(authorString: string): number {
+  // Format: "Author Name <email@example.com> 1234567890 +0000"
+  const matches = authorString.match(/ (\d+) [+-]\d{4}$/);
+  if (matches && matches[1]) {
+    return parseInt(matches[1], 10);
+  }
+  return 0;
 }
