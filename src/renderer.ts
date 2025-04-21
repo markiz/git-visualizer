@@ -12,6 +12,7 @@ interface GitObject {
   hash: string;
   size: number;
   content: string;
+  parsedContent?: any;  // Pre-parsed content from server
 }
 
 // Tree entry interface
@@ -149,9 +150,11 @@ function parseTreeContent(content: string): TreeEntry[] {
       pos = nullIndex + 1;
 
       // Extract 20-byte SHA-1 and convert to hex
-      const hash = Array.from(content.substring(pos, pos + 20))
-        .map(c => c.charCodeAt(0).toString(16).padStart(2, '0'))
-        .join('');
+      let hashBytes = [];
+      for (let j = 0; j < 20; j++) {
+        hashBytes.push(content.charCodeAt(pos + j) & 0xFF);
+      }
+      const hash = hashBytes.map(b => b.toString(16).padStart(2, '0')).join('');
       pos += 20;
 
       // Determine type from mode
@@ -179,7 +182,45 @@ function parseTreeContent(content: string): TreeEntry[] {
 }
 
 // Format commit content for display
-function formatCommitContent(content: string): string {
+function formatCommitContent(content: string, parsedContent?: any): string {
+  // If we have pre-parsed content from the server, use it
+  if (parsedContent) {
+    let html = '<div>';
+
+    // Add header entries
+    for (const key in parsedContent) {
+      if (key === 'message') continue; // Handle message separately
+
+      const value = parsedContent[key];
+
+      if (Array.isArray(value)) {
+        // Handle arrays like multiple parents
+        value.forEach((item: string) => {
+          if (key === 'tree' || key === 'parent') {
+            html += `<div><strong>${key}:</strong> <span class="${key === 'tree' ? 'tree' : 'commit'}"><a href="#" class="hash-link" data-hash="${item}">${item}</a></span></div>`;
+          } else {
+            html += `<div><strong>${key}:</strong> ${item}</div>`;
+          }
+        });
+      } else if (key === 'tree' || key === 'parent') {
+        html += `<div><strong>${key}:</strong> <span class="${key === 'tree' ? 'tree' : 'commit'}"><a href="#" class="hash-link" data-hash="${value}">${value}</a></span></div>`;
+      } else {
+        html += `<div><strong>${key}:</strong> ${value}</div>`;
+      }
+    }
+
+    html += '<hr>';
+
+    // Add commit message
+    if (parsedContent.message) {
+      html += `<div><strong>Message:</strong><br>${parsedContent.message.replace(/\n/g, '<br>')}</div>`;
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  // Fallback to the original parser if no pre-parsed content
   const lines = content.split('\n');
   let html = '<div>';
 
@@ -226,10 +267,11 @@ function showObjectDetails(object: GitObject): void {
   `;
 
   if (object.type === 'tree') {
-    const entries = parseTreeContent(object.content);
+    // Use parsed content from server if available
+    const entries = object.parsedContent?.entries || parseTreeContent(object.content);
     detailsHtml += '<h4>Tree Entries:</h4><ul>';
 
-    entries.forEach(entry => {
+    entries.forEach((entry: { type: string; name: string; mode: string; hash: string }) => {
       detailsHtml += `
         <li>
           <span class="${entry.type}">${entry.type}</span>
@@ -241,7 +283,7 @@ function showObjectDetails(object: GitObject): void {
 
     detailsHtml += '</ul>';
   } else if (object.type === 'commit') {
-    detailsHtml += formatCommitContent(object.content);
+    detailsHtml += formatCommitContent(object.content, object.parsedContent);
   } else {
     detailsHtml += `
       <h4>Content:</h4>
@@ -278,6 +320,8 @@ function showObjectDetails(object: GitObject): void {
             listItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           }
         } else {
+          console.error(`Object with hash ${hash} not found. Available hashes:`,
+            gitObjects.map(obj => obj.hash).slice(0, 10)); // Show first 10 hashes for debugging
           alert(`Object with hash ${hash} not found in the current repository view.`);
         }
       }

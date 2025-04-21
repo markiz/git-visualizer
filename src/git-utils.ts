@@ -89,15 +89,93 @@ export async function readObject(hash: string, dir: string = process.cwd()): Pro
   }
 }
 
-// Get all Git objects with their details
-export async function getAllObjects(dir: string = process.cwd()): Promise<GitObject[]> {
-  const hashes = listObjects(dir);
-  const objects: GitObject[] = [];
+// Enhanced git object with resolved references
+export interface EnhancedGitObject extends GitObject {
+  parsedContent?: any;  // For trees and commits, contains parsed content
+}
 
+// Get all Git objects with their details and resolved references
+export async function getAllObjects(dir: string = process.cwd()): Promise<EnhancedGitObject[]> {
+  // First collect all objects
+  const hashes = listObjects(dir);
+  const objects: EnhancedGitObject[] = [];
+
+  // Create a hash map for quick lookup
+  const objectMap = new Map<string, EnhancedGitObject>();
+
+  // First pass: load all objects
   for (const hash of hashes) {
     const object = await readObject(hash, dir);
     if (object) {
-      objects.push(object);
+      const enhancedObject: EnhancedGitObject = { ...object };
+      objects.push(enhancedObject);
+      objectMap.set(hash, enhancedObject);
+    }
+  }
+
+  // Also load packed objects
+  try {
+    // Get a list of all objects using git command
+    const allObjectsOutput = execSync('git rev-list --objects --all', { cwd: dir }).toString();
+    const allHashesSet = new Set(allObjectsOutput.split('\n')
+      .map(line => line.trim().split(' ')[0])
+      .filter(hash => hash && hash.length === 40));
+
+    // Add objects from git command that weren't in the loose objects
+    for (const hash of allHashesSet) {
+      if (!objectMap.has(hash)) {
+        try {
+          // Use git cat-file to get object info
+          const typeOutput = execSync(`git cat-file -t ${hash}`, { cwd: dir }).toString().trim();
+          const sizeOutput = execSync(`git cat-file -s ${hash}`, { cwd: dir }).toString().trim();
+          const contentOutput = execSync(`git cat-file -p ${hash}`, { cwd: dir }).toString();
+
+          const enhancedObject: EnhancedGitObject = {
+            type: typeOutput,
+            hash: hash,
+            size: parseInt(sizeOutput, 10),
+            content: contentOutput
+          };
+
+          objects.push(enhancedObject);
+          objectMap.set(hash, enhancedObject);
+        } catch (error) {
+          console.error(`Error reading packed object ${hash}:`, error);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error reading packed objects:', error);
+  }
+
+  // Second pass: parse and enhance objects with pre-processed content
+  for (const object of objects) {
+    if (object.type === 'tree') {
+      // Pre-parse tree entries on the server side
+      try {
+        // Get parsed entries with proper hash values directly from git
+        const treeListingOutput = execSync(`git ls-tree ${object.hash}`, { cwd: dir }).toString();
+        const entries = treeListingOutput.split('\n')
+          .filter(line => line.trim())
+          .map(line => {
+            // Format: <mode> <type> <hash>\t<name>
+            const parts = line.split('\t');
+            const name = parts[1];
+            const headParts = parts[0].split(' ');
+            const mode = headParts[0];
+            const type = headParts[1];
+            const hash = headParts[2];
+
+            return { mode, type, hash, name };
+          });
+
+        object.parsedContent = { entries };
+      } catch (error) {
+        console.error(`Error parsing tree object ${object.hash}:`, error);
+      }
+    } else if (object.type === 'commit') {
+      // Pre-parse commit data
+      object.parsedContent = parseCommitObject(object.content);
     }
   }
 
@@ -124,18 +202,17 @@ export function parseTreeObject(content: string): { mode: string; type: string; 
     const name = content.substring(pos, nullByteIndex);
     pos = nullByteIndex + 1;
 
-    // The next 20 bytes are the SHA-1 hash in binary format
-    // Convert to hex string
-    const hash = Array.from(content.substring(pos, pos + 20))
-      .map(c => c.charCodeAt(0).toString(16).padStart(2, '0'))
-      .join('');
+    // Create a Buffer from the binary hash bytes
+    const hashBuffer = Buffer.from(content.substring(pos, pos + 20), 'binary');
+    // Convert buffer to hex string
+    const hashHex = hashBuffer.toString('hex');
     pos += 20;
 
     // Determine type from mode
     let type;
-    if (mode === '40000') {
+    if (mode === '40000' || mode === '040000' || mode === '0000') {
       type = 'tree';
-    } else if (mode.startsWith('100')) {
+    } else if (mode.startsWith('100') || mode === '0644' || mode === '00644') {
       type = 'blob';
     } else if (mode === '160000') {
       type = 'commit'; // submodule
@@ -145,7 +222,7 @@ export function parseTreeObject(content: string): { mode: string; type: string; 
       type = 'unknown';
     }
 
-    result.push({ mode, type, hash, name });
+    result.push({ mode, type, hash: hashHex, name });
   }
 
   return result;
