@@ -22,8 +22,28 @@ function createWindow() {
   // Open DevTools for debugging
   mainWindow.webContents.openDevTools();
 
+  // Refresh Git objects when the page is reloaded
+  mainWindow.webContents.on('did-finish-load', async () => {
+    if (isGitRepository()) {
+      try {
+        const objects = await getAllObjects();
+        if (mainWindow) {
+          mainWindow.webContents.send('git-objects', objects);
+        }
+      } catch (error) {
+        console.error('Error refreshing Git objects on page load:', error);
+      }
+    } else {
+      if (mainWindow) {
+        mainWindow.webContents.send('git-objects', []);
+      }
+    }
+  });
+
   // Emitted when the window is closed
   mainWindow.on('closed', () => {
+    // Remove all IPC listeners when the window is closed
+    ipcMain.removeAllListeners('refresh-git-objects');
     mainWindow = null;
   });
 }

@@ -31,6 +31,11 @@ let searchBtn: HTMLElement;
 let gitObjects: GitObject[] = [];
 let selectedObjectHash: string | null = null;
 
+// Clean up event listeners when the page is unloaded
+window.addEventListener('beforeunload', () => {
+  window.electron.ipcRenderer.removeAllListeners('git-objects');
+});
+
 // Initialize UI when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
   // Get DOM elements
@@ -48,6 +53,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initial state
   repoStatus.textContent = 'Loading repository...';
+
+  // Request git objects on page load
+  window.electron.ipcRenderer.send('refresh-git-objects');
 });
 
 // Set up event listeners
