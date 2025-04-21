@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import * as path from 'path';
 import { isGitRepository, getAllObjects } from './git-utils';
 
@@ -75,6 +75,49 @@ ipcMain.on('refresh-git-objects', async () => {
       mainWindow.webContents.send('git-objects', objects);
     } catch (error) {
       console.error('Error refreshing Git objects:', error);
+    }
+  }
+});
+
+// Handle repository selection
+ipcMain.on('select-repository', async () => {
+  if (mainWindow) {
+    try {
+      const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openDirectory'],
+        title: 'Select Git Repository'
+      });
+
+      if (!result.canceled && result.filePaths.length > 0) {
+        const selectedDir = result.filePaths[0];
+
+        if (isGitRepository(selectedDir)) {
+          // Update the current working directory for git operations
+          process.chdir(selectedDir);
+
+          // Send the repository path to the renderer
+          mainWindow.webContents.send('repository-changed', selectedDir);
+
+          // Refresh objects from the new repository
+          const objects = await getAllObjects(selectedDir);
+          mainWindow.webContents.send('git-objects', objects);
+        } else {
+          mainWindow.webContents.send('repository-error', 'The selected directory is not a Git repository.');
+        }
+      }
+    } catch (error) {
+      console.error('Error selecting repository:', error);
+      if (mainWindow) {
+        let errorMessage = 'An unknown error occurred';
+        if (error instanceof Error) {
+          errorMessage = error.message;
+        } else if (typeof error === 'string') {
+          errorMessage = error;
+        } else if (error && typeof error === 'object' && 'message' in error) {
+          errorMessage = (error as { message: string }).message;
+        }
+        mainWindow.webContents.send('repository-error', `Error: ${errorMessage}`);
+      }
     }
   }
 });

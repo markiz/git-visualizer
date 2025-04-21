@@ -1,5 +1,10 @@
-// Import the ElectronAPI type
+// Type definition for our Electron bridge
 /// <reference path="./electron.d.ts" />
+
+// Path module for handling file paths
+const path = {
+  sep: '/' // Simple path separator implementation for browser context
+};
 
 // Git object interface
 interface GitObject {
@@ -22,6 +27,7 @@ let repoStatus: HTMLElement;
 let objectsList: HTMLElement;
 let objectDetails: HTMLElement;
 let refreshBtn: HTMLElement;
+let selectRepoBtn: HTMLElement;
 let objectTypeFilter: HTMLSelectElement;
 let objectCount: HTMLElement;
 let searchInput: HTMLInputElement;
@@ -34,6 +40,8 @@ let selectedObjectHash: string | null = null;
 // Clean up event listeners when the page is unloaded
 window.addEventListener('beforeunload', () => {
   window.electron.ipcRenderer.removeAllListeners('git-objects');
+  window.electron.ipcRenderer.removeAllListeners('repository-changed');
+  window.electron.ipcRenderer.removeAllListeners('repository-error');
 });
 
 // Initialize UI when DOM is loaded
@@ -43,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
   objectsList = document.getElementById('objects-list')!;
   objectDetails = document.getElementById('object-details')!;
   refreshBtn = document.getElementById('refresh-btn')!;
+  selectRepoBtn = document.getElementById('select-repo-btn')!;
   objectTypeFilter = document.getElementById('object-type-filter') as HTMLSelectElement;
   objectCount = document.getElementById('object-count')!;
   searchInput = document.getElementById('search-input') as HTMLInputElement;
@@ -64,6 +73,12 @@ function setupEventListeners(): void {
   refreshBtn.addEventListener('click', () => {
     repoStatus.textContent = 'Refreshing repository...';
     window.electron.ipcRenderer.send('refresh-git-objects');
+  });
+
+  // Select repository button
+  selectRepoBtn.addEventListener('click', () => {
+    repoStatus.textContent = 'Selecting repository...';
+    window.electron.ipcRenderer.send('select-repository');
   });
 
   // Type filter
@@ -94,6 +109,23 @@ function setupEventListeners(): void {
 
     repoStatus.textContent = `Repository loaded with ${objects.length} objects.`;
     renderObjectsList(objects);
+  });
+
+  // Handle repository change event
+  window.electron.ipcRenderer.on('repository-changed', (repoPath: string) => {
+    // Extract repository name from path
+    const repoName = repoPath.split(path.sep).pop() || repoPath;
+    repoStatus.textContent = `Selected repository: ${repoName}`;
+    // Clear previous data
+    objectsList.innerHTML = '<p>Loading objects...</p>';
+    objectDetails.innerHTML = '<p>Select an object to view its details</p>';
+  });
+
+  // Handle repository error event
+  window.electron.ipcRenderer.on('repository-error', (errorMessage: string) => {
+    repoStatus.textContent = errorMessage;
+    objectsList.innerHTML = '<p>No repository loaded.</p>';
+    objectDetails.innerHTML = '<p>No objects available.</p>';
   });
 }
 

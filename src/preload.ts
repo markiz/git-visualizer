@@ -6,14 +6,33 @@ contextBridge.exposeInMainWorld(
   'electron', {
     ipcRenderer: {
       send: (channel: string, ...args: any[]) => {
-        ipcRenderer.send(channel, ...args);
+        // Whitelist channels
+        const validChannels = ['refresh-git-objects', 'select-repository'];
+        if (validChannels.includes(channel)) {
+          ipcRenderer.send(channel, ...args);
+        }
       },
       on: (channel: string, func: (...args: any[]) => void) => {
-        // Strip event as it includes `sender` and is a security risk
-        ipcRenderer.on(channel, (event, ...args) => func(...args));
+        // Whitelist channels
+        const validChannels = [
+          'git-objects',
+          'repository-changed',
+          'repository-error'
+        ];
+        if (validChannels.includes(channel)) {
+          // Strip event as it includes `sender` and is a security risk
+          ipcRenderer.on(channel, (event, ...args) => func(...args));
+        }
       },
       removeAllListeners: (channel: string) => {
-        ipcRenderer.removeAllListeners(channel);
+        const validChannels = [
+          'git-objects',
+          'repository-changed',
+          'repository-error'
+        ];
+        if (validChannels.includes(channel)) {
+          ipcRenderer.removeAllListeners(channel);
+        }
       }
     }
   }
