@@ -46,6 +46,12 @@
       border: 1px solid #ddd;
       border-radius: 4px;
       padding: 10px;
+      outline: none;
+    }
+
+    .objects-list:focus {
+      border-color: #2196F3;
+      box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
     }
 
     .object-details {
@@ -56,6 +62,12 @@
       border: 1px solid #ddd;
       border-radius: 4px;
       padding: 10px;
+      outline: none;
+    }
+
+    .object-details:focus {
+      border-color: #2196F3;
+      box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
     }
 
     .object-item {
@@ -177,11 +189,11 @@
     </div>
 
     <div class="objects-container">
-      <div class="objects-list" id="objects-list">
+      <div class="objects-list" id="objects-list" tabindex="0">
         <p>Loading objects...</p>
       </div>
 
-      <div class="object-details" id="object-details">
+      <div class="object-details" id="object-details" tabindex="0">
         <p>Select an object to view its details</p>
       </div>
     </div>

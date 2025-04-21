@@ -38,6 +38,7 @@ let sortSelect: HTMLSelectElement;
 // Global state
 let gitObjects: GitObject[] = [];
 let selectedObjectHash: string | null = null;
+let filteredObjectsList: GitObject[] = []; // Store the filtered list for keyboard navigation
 
 // Clean up event listeners when the page is unloaded
 window.addEventListener('beforeunload', () => {
@@ -45,6 +46,66 @@ window.addEventListener('beforeunload', () => {
   window.electron.ipcRenderer.removeAllListeners('repository-changed');
   window.electron.ipcRenderer.removeAllListeners('repository-error');
 });
+
+// Handle keyboard navigation with arrow keys
+function handleKeyboardNavigation(event: KeyboardEvent): void {
+  // Only handle if we have objects and an active selection
+  if (!filteredObjectsList.length || !selectedObjectHash) return;
+
+  // Only process keyboard navigation when the objects list has focus
+  // or when the details panel has focus (for navigating while reading details)
+  const activeElement = document.activeElement;
+  const isListFocused = objectsList.contains(activeElement) ||
+                        activeElement === objectsList ||
+                        objectDetails.contains(activeElement) ||
+                        activeElement === objectDetails ||
+                        activeElement === document.body;
+
+  if (!isListFocused) return;
+
+  // Find the currently selected object index
+  const currentIndex = filteredObjectsList.findIndex(obj => obj.hash === selectedObjectHash);
+  if (currentIndex === -1) return;
+
+  let newIndex = currentIndex;
+
+  // Handle arrow key navigation
+  switch (event.key) {
+    case 'ArrowUp':
+      event.preventDefault();
+      newIndex = Math.max(0, currentIndex - 1);
+      break;
+    case 'ArrowDown':
+      event.preventDefault();
+      newIndex = Math.min(filteredObjectsList.length - 1, currentIndex + 1);
+      break;
+    case 'Enter':
+      // If Enter is pressed, just focus on the details panel
+      event.preventDefault();
+      objectDetails.focus();
+      return;
+  }
+
+  // If we've moved to a different object, select it
+  if (newIndex !== currentIndex) {
+    const newObject = filteredObjectsList[newIndex];
+    selectedObjectHash = newObject.hash;
+
+    // Update UI selection
+    document.querySelectorAll('.object-item').forEach(el => {
+      el.classList.remove('selected');
+    });
+
+    const newSelectedItem = document.querySelector(`.object-item[data-hash="${newObject.hash}"]`);
+    if (newSelectedItem) {
+      newSelectedItem.classList.add('selected');
+      newSelectedItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // Show details
+    showObjectDetails(newObject);
+  }
+}
 
 // Initialize UI when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -62,6 +123,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Set up event listeners
   setupEventListeners();
+
+  // Add keyboard navigation
+  document.addEventListener('keydown', handleKeyboardNavigation);
+
+  // Auto-focus list containers when clicked anywhere inside
+  objectsList.addEventListener('click', (event) => {
+    if (event.target !== document.activeElement) {
+      objectsList.focus();
+    }
+  });
+
+  objectDetails.addEventListener('click', (event) => {
+    if (event.target !== document.activeElement) {
+      objectDetails.focus();
+    }
+  });
 
   // Initial state
   repoStatus.textContent = 'Loading repository...';
@@ -424,6 +501,9 @@ function renderObjectsList(objects: GitObject[]): void {
         break;
     }
   }
+
+  // Store the filtered list for keyboard navigation
+  filteredObjectsList = filteredObjects;
 
   objectCount.textContent = `(${filteredObjects.length} objects)`;
 
