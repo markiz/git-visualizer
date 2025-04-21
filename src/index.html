@@ -106,11 +106,22 @@
       text-decoration: none;
       border-bottom: 1px dotted;
       cursor: pointer;
+      outline: none;
+      padding: 1px 2px;
+      border-radius: 2px;
     }
 
     .hash-link:hover {
       text-decoration: none;
       border-bottom: 1px solid;
+      background-color: rgba(33, 150, 243, 0.1);
+    }
+
+    .hash-link:focus {
+      text-decoration: none;
+      border-bottom: 1px solid;
+      background-color: rgba(33, 150, 243, 0.2);
+      box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
     }
 
     pre {
@@ -180,6 +191,8 @@
             <option value="size-desc">Size (Largest First)</option>
             <option value="size-asc">Size (Smallest First)</option>
           </select>
+          <div id="object-count" class="object-count"></div>
+          <div style="font-size: 0.8em; color: #666; margin-top: 5px;">Click or tab to lists, then use ↑/↓ keys to navigate</div>
         </div>
         <div>
           <input type="text" id="search-input" placeholder="Search by hash or content..." style="padding: 5px; width: 250px;">

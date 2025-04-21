@@ -1,11 +1,6 @@
 // Type definition for our Electron bridge
 /// <reference path="./electron.d.ts" />
 
-// Path module for handling file paths
-const path = {
-  sep: '/' // Simple path separator implementation for browser context
-};
-
 // Git object interface
 interface GitObject {
   type: string;
@@ -22,6 +17,11 @@ interface TreeEntry {
   hash: string;
   name: string;
 }
+
+// Path module for handling file paths
+const path = {
+  sep: '/' // Simple path separator implementation for browser context
+};
 
 // DOM Elements
 let repoStatus: HTMLElement;
@@ -384,42 +384,60 @@ function showObjectDetails(object: GitObject): void {
 
   // Add click event listeners for hash links
   objectDetails.querySelectorAll('.hash-link').forEach(link => {
+    // Add click handler
     link.addEventListener('click', (event) => {
       event.preventDefault();
       const hash = (event.currentTarget as HTMLElement).getAttribute('data-hash');
-      if (hash) {
-        console.log('Clicked on hash:', hash);
-        // Debug logging to see what's available
-        console.log('First few available hashes:', gitObjects.slice(0, 5).map(obj => obj.hash));
+      navigateToHash(hash);
+    });
 
-        // Find the object with this hash
-        const linkedObject = gitObjects.find(obj => obj.hash.toLowerCase() === hash.toLowerCase());
-        if (linkedObject) {
-          // Update selected hash
-          selectedObjectHash = hash;
-
-          // Show details for the linked object
-          showObjectDetails(linkedObject);
-
-          // Update selection in the list if visible
-          const listItem = document.querySelector(`.object-item[data-hash="${hash}"]`);
-          if (listItem) {
-            document.querySelectorAll('.object-item').forEach(el => {
-              el.classList.remove('selected');
-            });
-            listItem.classList.add('selected');
-
-            // Scroll the item into view
-            listItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          }
-        } else {
-          console.error(`Object with hash ${hash} not found. Available hashes:`,
-            gitObjects.map(obj => obj.hash).slice(0, 10)); // Show first 10 hashes for debugging
-          alert(`Object with hash ${hash} not found in the current repository view.`);
-        }
+    // Add keydown handler for Enter key with proper type handling
+    link.addEventListener('keydown', (event) => {
+      if (event instanceof KeyboardEvent && event.key === 'Enter') {
+        event.preventDefault();
+        const hash = (event.currentTarget as HTMLElement).getAttribute('data-hash');
+        navigateToHash(hash);
       }
     });
+
+    // Make the links keyboard focusable
+    link.setAttribute('tabindex', '0');
   });
+}
+
+// Function to navigate to a specific hash
+function navigateToHash(hash: string | null): void {
+  if (hash) {
+    console.log('Navigating to hash:', hash);
+    // Debug logging to see what's available
+    console.log('First few available hashes:', gitObjects.slice(0, 5).map(obj => obj.hash));
+
+    // Find the object with this hash
+    const linkedObject = gitObjects.find(obj => obj.hash.toLowerCase() === hash.toLowerCase());
+    if (linkedObject) {
+      // Update selected hash
+      selectedObjectHash = hash;
+
+      // Show details for the linked object
+      showObjectDetails(linkedObject);
+
+      // Update selection in the list if visible
+      const listItem = document.querySelector(`.object-item[data-hash="${hash}"]`);
+      if (listItem) {
+        document.querySelectorAll('.object-item').forEach(el => {
+          el.classList.remove('selected');
+        });
+        listItem.classList.add('selected');
+
+        // Scroll the item into view
+        listItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    } else {
+      console.error(`Object with hash ${hash} not found. Available hashes:`,
+        gitObjects.map(obj => obj.hash).slice(0, 10)); // Show first 10 hashes for debugging
+      alert(`Object with hash ${hash} not found in the current repository view.`);
+    }
+  }
 }
 
 // Helper to escape HTML
@@ -430,6 +448,16 @@ function escapeHtml(unsafe: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+// Helper function to extract timestamp from Git author string
+function extractDateFromAuthor(authorString: string): number {
+  // Format: "Author Name <email@example.com> 1234567890 +0000"
+  const matches = authorString.match(/ (\d+) [+-]\d{4}$/);
+  if (matches && matches[1]) {
+    return parseInt(matches[1], 10);
+  }
+  return 0;
 }
 
 // Render list of objects
@@ -567,14 +595,4 @@ function renderObjectsList(objects: GitObject[]): void {
       }
     });
   });
-}
-
-// Helper function to extract timestamp from Git author string
-function extractDateFromAuthor(authorString: string): number {
-  // Format: "Author Name <email@example.com> 1234567890 +0000"
-  const matches = authorString.match(/ (\d+) [+-]\d{4}$/);
-  if (matches && matches[1]) {
-    return parseInt(matches[1], 10);
-  }
-  return 0;
 }

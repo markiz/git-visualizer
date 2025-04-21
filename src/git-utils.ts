@@ -15,6 +15,11 @@ export interface GitObject {
   content: string;    // Raw content as string
 }
 
+// Enhanced git object with resolved references
+export interface EnhancedGitObject extends GitObject {
+  parsedContent?: any;  // For trees and commits, contains parsed content
+}
+
 // Check if the current directory is a Git repository
 export function isGitRepository(dir: string = process.cwd()): boolean {
   const gitDir = path.join(dir, '.git');
@@ -89,11 +94,6 @@ export async function readObject(hash: string, dir: string = process.cwd()): Pro
   }
 }
 
-// Enhanced git object with resolved references
-export interface EnhancedGitObject extends GitObject {
-  parsedContent?: any;  // For trees and commits, contains parsed content
-}
-
 // Get all Git objects with their details and resolved references
 export async function getAllObjects(dir: string = process.cwd()): Promise<EnhancedGitObject[]> {
   // First collect all objects
@@ -158,7 +158,7 @@ export async function getAllObjects(dir: string = process.cwd()): Promise<Enhanc
         const entries = treeListingOutput.split('\n')
           .filter(line => line.trim())
           .map(line => {
-            // Format: <mode> <type> <hash>\t<name>
+            // Format: <mode> <type> <hash>\t<n>
             const parts = line.split('\t');
             const name = parts[1];
             const headParts = parts[0].split(' ');
