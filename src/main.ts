@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import * as path from 'path';
-import { isGitRepository, getAllObjects } from './git-utils';
+import { isGitRepository, getAllObjects } from './git-utils.js';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -12,12 +12,13 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      sandbox: true,
+      preload: path.resolve('dist', 'preload.mjs')
     }
   });
 
   // Load the index.html of the app
-  mainWindow.loadFile(path.join(__dirname, 'index.html'));
+  mainWindow.loadFile('index.html');
 
   // Open DevTools for debugging
   mainWindow.webContents.openDevTools();
