@@ -13,7 +13,6 @@
     }
 
     .container {
-      max-width: 1200px;
       margin: 0 auto;
     }
 
@@ -40,7 +39,6 @@
 
     .objects-list {
       flex: 1;
-      max-height: 600px;
       overflow-y: auto;
       background-color: #fff;
       border: 1px solid #ddd;
@@ -56,7 +54,6 @@
 
     .object-details {
       flex: 2;
-      max-height: 600px;
       overflow-y: auto;
       background-color: #fff;
       border: 1px solid #ddd;
@@ -150,6 +147,18 @@
 
     .filter-container {
       margin-bottom: 10px;
+    }
+
+    @media (max-width: 768px) {
+      .objects-container {
+        flex-direction: column;
+      }
+
+      .objects-list,
+      .object-details {
+        flex: none; /* Remove flex grow/shrink on smaller screens */
+        width: 100%; /* Take full width */
+      }
     }
 
     .object-count {
