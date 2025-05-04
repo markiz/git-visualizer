@@ -1,22 +1,8 @@
 // Type definition for our Electron bridge
 /// <reference path="./electron.d.ts" />
 
-// Git object interface
-interface GitObject {
-  type: string;
-  hash: string;
-  size: number;
-  content: string;
-  parsedContent?: any;  // Pre-parsed content from server
-}
+import { parseTreeContent, formatCommitContent, extractDateFromAuthor, GitObject, TreeEntry } from './git-renderer-utils.js';
 
-// Tree entry interface
-interface TreeEntry {
-  mode: string;
-  type: string;
-  hash: string;
-  name: string;
-}
 
 // Path module for handling file paths
 const path = {
@@ -214,137 +200,7 @@ function setupEventListeners(): void {
   });
 }
 
-// Parse tree content for display
-function parseTreeContent(content: string): TreeEntry[] {
-  try {
-    const entries: TreeEntry[] = [];
-    let pos = 0;
 
-    while (pos < content.length) {
-      const spaceIndex = content.indexOf(' ', pos);
-      if (spaceIndex === -1) break;
-
-      const mode = content.substring(pos, spaceIndex);
-      pos = spaceIndex + 1;
-
-      const nullIndex = content.indexOf('\0', pos);
-      if (nullIndex === -1) break;
-
-      const name = content.substring(pos, nullIndex);
-      pos = nullIndex + 1;
-
-      // Extract 20-byte SHA-1 and convert to hex
-      // Create a binary-to-hex array manually
-      const hashBytes: number[] = [];
-      for (let j = 0; j < 20; j++) {
-        // Get byte value safely
-        const charCode = content.charCodeAt(pos + j);
-        // Use bitwise AND to get the lower 8 bits only
-        hashBytes.push(charCode & 0xFF);
-      }
-      // Convert to hex string
-      const hash = hashBytes.map(b => b.toString(16).padStart(2, '0')).join('');
-      pos += 20;
-
-      // Determine type from mode
-      let type: string;
-      if (mode === '40000' || mode === '040000' || mode === '0000') {
-        type = 'tree';
-      } else if (mode === '100644' || mode === '100664' || mode === '100755' || mode === '0644' || mode === '00644') {
-        type = 'blob';
-      } else if (mode === '160000') {
-        type = 'commit'; // submodule
-      } else if (mode === '120000') {
-        type = 'blob';   // symlink
-      } else {
-        type = 'unknown';
-      }
-
-      entries.push({ mode, type, hash, name });
-    }
-
-    return entries;
-  } catch (error) {
-    console.error('Error parsing tree content:', error);
-    return [];
-  }
-}
-
-// Format commit content for display
-function formatCommitContent(content: string, parsedContent?: any): string {
-  // If we have pre-parsed content from the server, use it
-  if (parsedContent) {
-    let html = '<div>';
-
-    // Add header entries
-    for (const key in parsedContent) {
-      if (key === 'message') continue; // Handle message separately
-
-      const value = parsedContent[key];
-
-      if (Array.isArray(value)) {
-        // Handle arrays like multiple parents
-        value.forEach((item: string) => {
-          if (key === 'tree' || key === 'parent') {
-            html += `<div><strong>${key}:</strong> <span class="${key === 'tree' ? 'tree' : 'commit'}"><a href="#" class="hash-link" data-hash="${item}">${item}</a></span></div>`;
-          } else {
-            html += `<div><strong>${key}:</strong> ${item}</div>`;
-          }
-        });
-      } else if (key === 'tree' || key === 'parent') {
-        html += `<div><strong>${key}:</strong> <span class="${key === 'tree' ? 'tree' : 'commit'}"><a href="#" class="hash-link" data-hash="${value}">${value}</a></span></div>`;
-      } else {
-        html += `<div><strong>${key}:</strong> ${value}</div>`;
-      }
-    }
-
-    html += '<hr>';
-
-    // Add commit message
-    if (parsedContent.message) {
-      html += `<div><strong>Message:</strong><br>${parsedContent.message.replace(/\n/g, '<br>')}</div>`;
-    }
-
-    html += '</div>';
-    return html;
-  }
-
-  // Fallback to the original parser if no pre-parsed content
-  const lines = content.split('\n');
-  let html = '<div>';
-
-  // Extract headers and message
-  let i = 0;
-  for (; i < lines.length; i++) {
-    const line = lines[i];
-    if (line === '') break;
-
-    const spaceIndex = line.indexOf(' ');
-    if (spaceIndex !== -1) {
-      const key = line.substring(0, spaceIndex);
-      const value = line.substring(spaceIndex + 1);
-
-      if (key === 'tree') {
-        html += `<div><strong>${key}:</strong> <span class="tree"><a href="#" class="hash-link" data-hash="${value}">${value}</a></span></div>`;
-      } else if (key === 'parent') {
-        html += `<div><strong>${key}:</strong> <span class="commit"><a href="#" class="hash-link" data-hash="${value}">${value}</a></span></div>`;
-      } else {
-        html += `<div><strong>${key}:</strong> ${value}</div>`;
-      }
-    }
-  }
-
-  html += '<hr>';
-
-  // Add commit message
-  if (i < lines.length - 1) {
-    const message = lines.slice(i + 1).join('<br>');
-    html += `<div><strong>Message:</strong><br>${message}</div>`;
-  }
-
-  html += '</div>';
-  return html;
-}
 
 // Display object details
 function showObjectDetails(object: GitObject): void {
@@ -450,15 +306,6 @@ function escapeHtml(unsafe: string): string {
     .replace(/'/g, "&#039;");
 }
 
-// Helper function to extract timestamp from Git author string
-function extractDateFromAuthor(authorString: string): number {
-  // Format: "Author Name <email@example.com> 1234567890 +0000"
-  const matches = authorString.match(/ (\d+) [+-]\d{4}$/);
-  if (matches && matches[1]) {
-    return parseInt(matches[1], 10);
-  }
-  return 0;
-}
 
 // Render list of objects
 function renderObjectsList(objects: GitObject[]): void {
