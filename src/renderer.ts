@@ -111,6 +111,17 @@ document.addEventListener('DOMContentLoaded', () => {
   // Add keyboard navigation
   document.addEventListener('keydown', handleKeyboardNavigation);
 
+  // Handle Ctrl+F (Windows/Linux) or Cmd+F (Mac) for search focus
+  document.addEventListener('keydown', (event) => {
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const isSearchShortcut = (isMac && event.metaKey && event.key === 'f') || (!isMac && event.ctrlKey && event.key === 'f');
+
+    if (isSearchShortcut) {
+      event.preventDefault(); // Prevent default browser find behavior
+      searchInput.focus();
+    }
+  });
+
   // Auto-focus list containers when clicked anywhere inside
   objectsList.addEventListener('click', (event) => {
     if (event.target !== document.activeElement) {
