@@ -85,3 +85,30 @@ export function parseCommitObject(content: string): ParsedCommitObject {
 
   return result;
 }
+
+// Enhanced git object with resolved references
+export class EnhancedGitObject implements GitObject {
+  type: string;
+  hash: string;
+  size: number;
+  content: Buffer;
+  parsedCommit?: ParsedCommitObject;
+  parsedTree?: ParsedTreeObject;
+  isBinary?: boolean; // Add isBinary flag
+
+  private _cachedContentString: string | undefined;
+
+  constructor(gitObject: GitObject) {
+    this.type = gitObject.type;
+    this.hash = gitObject.hash;
+    this.size = gitObject.size;
+    this.content = gitObject.content;
+  }
+
+  getContentString(): string {
+    if (this._cachedContentString === undefined) {
+      this._cachedContentString = this.content.toString('utf8');
+    }
+    return this._cachedContentString;
+  }
+}

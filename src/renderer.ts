@@ -2,8 +2,7 @@
 /// <reference path="./electron.d.ts" />
 
 import { parseTreeContent, formatCommitContent, extractDateFromAuthor } from './git-renderer-utils.js';
-import { GitObject, TreeEntry, ParsedCommitObject, ParsedTreeObject } from './git-shared-utils.js';
-import { EnhancedGitObject } from './git-utils.js';
+import { GitObject, TreeEntry, ParsedCommitObject, ParsedTreeObject, EnhancedGitObject } from './git-shared-utils.js';
 
 // Path module for handling file paths
 const path = {
@@ -22,9 +21,9 @@ let searchBtn: HTMLElement;
 let sortSelect: HTMLSelectElement;
 
 // Global state
-let gitObjects: GitObject[] = [];
+let gitObjects: EnhancedGitObject[] = [];
 let selectedObjectHash: string | null = null;
-let filteredObjectsList: GitObject[] = []; // Store the filtered list for keyboard navigation
+let filteredObjectsList: EnhancedGitObject[] = []; // Store the filtered list for keyboard navigation
 
 // Clean up event listeners when the page is unloaded
 window.addEventListener('beforeunload', () => {
@@ -168,17 +167,25 @@ function setupEventListeners(): void {
   });
 
   // Receive Git objects from main process
-  window.electron.ipcRenderer.on('git-objects', (objects: EnhancedGitObject[]) => {
-    gitObjects = objects;
+  window.electron.ipcRenderer.on('git-objects', (plainObjects: any[]) => {
+    // Reconstruct EnhancedGitObject instances from plain objects
+    gitObjects = plainObjects.map(obj => {
+      const enhancedObject = new EnhancedGitObject(obj);
+      // Copy other properties that are not part of the base GitObject
+      enhancedObject.parsedCommit = obj.parsedCommit;
+      enhancedObject.parsedTree = obj.parsedTree;
+      enhancedObject.isBinary = obj.isBinary;
+      return enhancedObject;
+    });
 
-    if (objects.length === 0) {
+    if (gitObjects.length === 0) {
       repoStatus.textContent = 'No Git objects found.';
       objectsList.innerHTML = '<p>No objects available.</p>';
       return;
     }
 
-    repoStatus.textContent = `Repository loaded with ${objects.length} objects.`;
-    renderObjectsList(objects);
+    repoStatus.textContent = `Repository loaded with ${gitObjects.length} objects.`;
+    renderObjectsList(gitObjects);
   });
 
   // Handle repository change event
@@ -239,10 +246,10 @@ function showObjectDetails(object: EnhancedGitObject): void {
   }
   else {
     // Display content for non-binary blobs and other types
-    // Ensure content is a string before escaping and displaying
+    // Use cached string for escaping and displaying
     detailsHtml += `
       <h4>Content:</h4>
-      <pre>${escapeHtml(object.content.toString('utf8'))}</pre>
+      <pre>${escapeHtml(object.getContentString())}</pre>
     `;
   }
 
@@ -333,8 +340,8 @@ function renderObjectsList(objects: EnhancedGitObject[]): void {
     filteredObjects = filteredObjects.filter(obj =>
       // Search by hash
       obj.hash.toLowerCase().includes(searchTerm) ||
-      // Search by content (limited for performance) - convert Buffer to string for search
-      (obj.content as Buffer).toString('utf8').toLowerCase().includes(searchTerm)
+      // Search by content (limited for performance) - use cached string for search
+      obj.getContentString().toLowerCase().includes(searchTerm)
     );
   }
 

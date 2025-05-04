@@ -3,17 +3,10 @@ import * as path from 'path';
 import * as zlib from 'zlib';
 import { promisify } from 'util';
 import { execSync } from 'child_process';
-import { GitObject, parseCommitObject, ParsedCommitObject, ParsedTreeObject } from "./git-shared-utils.js";
+import { GitObject, parseCommitObject, ParsedCommitObject, ParsedTreeObject, EnhancedGitObject } from "./git-shared-utils.js";
 
 // Promisify zlib functions
 const inflateAsync = promisify(zlib.inflate);
-
-// Enhanced git object with resolved references
-export interface EnhancedGitObject extends GitObject {
-  parsedCommit?: ParsedCommitObject;
-  parsedTree?: ParsedTreeObject;
-  isBinary?: boolean; // Add isBinary flag
-}
 
 // Check if the current directory is a Git repository
 export function isGitRepository(dir: string = process.cwd()): boolean {
@@ -138,7 +131,7 @@ export async function getAllObjects(dir: string = process.cwd()): Promise<Enhanc
   for (const hash of hashes) {
     const object = await readObject(hash, dir);
     if (object) {
-      const enhancedObject: EnhancedGitObject = { ...object };
+      const enhancedObject = new EnhancedGitObject(object);
       // For blob objects, check if they are binary
       if (enhancedObject.type === 'blob') {
         enhancedObject.isBinary = isBinaryBlob(enhancedObject.content as Buffer);
