@@ -13,7 +13,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
-      preload: path.resolve('dist', 'preload.mjs')
+      preload: path.join(app.getAppPath(), 'preload.mjs')
     }
   });
 

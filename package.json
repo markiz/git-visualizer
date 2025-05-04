@@ -1,18 +1,19 @@
 {
   "name": "git-visualizer",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "main": "dist/main.js",
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "npm run build && electron ./dist/main.js",
     "build": "tsc && tsc src/preload.ts --module commonjs --outDir dist && node copy-assets.js",
+    "release": "npm run build && electron-builder",
     "dev": "tsc -w"
   },
   "keywords": [],
-  "author": "",
+  "author": "markiz",
   "license": "ISC",
-  "description": "",
+  "description": "Git low-level object content explorer",
   "dependencies": {
     "electron-reload": "^2.0.0-alpha.1"
   },
@@ -22,5 +23,29 @@
     "electron-builder": "^26.0.12",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
-  }
+  },
+  "build": {
+    "productName": "Git Visualizer",
+    "icon": "doc/git-visualizer.png",
+    "directories": {
+      "app": "dist"
+    },
+    "files": [
+      "**/*.{js,mjs,html,map,css,json,png}",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/*.d.ts",
+      "!**/node_modules/.bin",
+      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+      "!.editorconfig",
+      "!**/._*",
+      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
+      "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
+      "!**/{appveyor.yml,.travis.yml,circle.yml}",
+      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+    ]
+  },
+  "extraResources": [
+    "icon.png"
+  ]
 }
