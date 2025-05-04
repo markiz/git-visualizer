@@ -30,16 +30,7 @@ function createWindow() {
         const objects = await getAllObjects();
         if (mainWindow) {
           // Convert EnhancedGitObject instances to plain objects before sending
-          const plainObjects = objects.map(obj => ({
-            type: obj.type,
-            hash: obj.hash,
-            size: obj.size,
-            content: obj.content, // Buffer is serializable
-            parsedCommit: obj.parsedCommit,
-            parsedTree: obj.parsedTree,
-            isBinary: obj.isBinary,
-            contentString: obj.getContentString(), // Include the cached string
-          }));
+          const plainObjects = objects.map(obj => obj.toPlainObject());
           mainWindow.webContents.send('git-objects', plainObjects);
         }
       } catch (error) {
@@ -72,16 +63,7 @@ app.whenReady().then(() => {
     getAllObjects().then(objects => {
       if (mainWindow) {
         // Convert EnhancedGitObject instances to plain objects before sending
-        const plainObjects = objects.map(obj => ({
-          type: obj.type,
-          hash: obj.hash,
-          size: obj.size,
-          content: obj.content, // Buffer is serializable
-          parsedCommit: obj.parsedCommit,
-          parsedTree: obj.parsedTree,
-          isBinary: obj.isBinary,
-          contentString: obj.getContentString(), // Include the cached string
-        }));
+        const plainObjects = objects.map(obj => obj.toPlainObject());
         mainWindow.webContents.send('git-objects', plainObjects);
       }
     }).catch(error => {
@@ -96,16 +78,7 @@ ipcMain.on('refresh-git-objects', async () => {
     try {
       const objects = await getAllObjects();
       // Convert EnhancedGitObject instances to plain objects before sending
-      const plainObjects = objects.map(obj => ({
-        type: obj.type,
-        hash: obj.hash,
-        size: obj.size,
-        content: obj.content, // Buffer is serializable
-        parsedCommit: obj.parsedCommit,
-        parsedTree: obj.parsedTree,
-        isBinary: obj.isBinary,
-        contentString: obj.getContentString(), // Include the cached string
-      }));
+      const plainObjects = objects.map(obj => obj.toPlainObject());
       mainWindow.webContents.send('git-objects', plainObjects);
     } catch (error) {
       console.error('Error refreshing Git objects:', error);
@@ -135,16 +108,7 @@ ipcMain.on('select-repository', async () => {
           // Refresh objects from the new repository
           const objects = await getAllObjects(selectedDir);
           // Convert EnhancedGitObject instances to plain objects before sending
-          const plainObjects = objects.map(obj => ({
-            type: obj.type,
-            hash: obj.hash,
-            size: obj.size,
-            content: obj.content, // Buffer is serializable
-            parsedCommit: obj.parsedCommit,
-            parsedTree: obj.parsedTree,
-            isBinary: obj.isBinary,
-            contentString: obj.getContentString(), // Include the cached string
-          }));
+          const plainObjects = objects.map(obj => obj.toPlainObject());
           mainWindow.webContents.send('git-objects', plainObjects);
         } else {
           mainWindow.webContents.send('repository-error', 'The selected directory is not a Git repository.');

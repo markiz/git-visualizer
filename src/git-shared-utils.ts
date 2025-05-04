@@ -112,4 +112,43 @@ export class EnhancedGitObject implements GitObject {
     }
     return this._cachedContentString;
   }
+
+  /**
+   * Serializes this EnhancedGitObject instance into a plain object suitable for IPC.
+   * @returns A plain object representation of the EnhancedGitObject.
+   */
+  toPlainObject(): any {
+    return {
+      type: this.type,
+      hash: this.hash,
+      size: this.size,
+      content: this.content, // Buffer is serializable
+      parsedCommit: this.parsedCommit,
+      parsedTree: this.parsedTree,
+      isBinary: this.isBinary,
+      contentString: this.getContentString(), // Include the cached string
+    };
+  }
+
+  /**
+   * Deserializes a plain object received via IPC back into an EnhancedGitObject instance.
+   * @param plainObj The plain object to deserialize.
+   * @returns An EnhancedGitObject instance.
+   */
+  static fromPlainObject(plainObj: any): EnhancedGitObject {
+    // In the renderer, we don't have Buffer. We rely on contentString.
+    // The content property will be whatever IPC sends (likely an array).
+    // The EnhancedGitObject constructor will use contentString if provided.
+    const gitObject: GitObject = {
+      type: plainObj.type,
+      hash: plainObj.hash,
+      size: plainObj.size,
+      content: plainObj.content, // Keep content as received
+    };
+    const enhancedObject = new EnhancedGitObject(gitObject, plainObj.contentString);
+    enhancedObject.parsedCommit = plainObj.parsedCommit;
+    enhancedObject.parsedTree = plainObj.parsedTree;
+    enhancedObject.isBinary = plainObj.isBinary;
+    return enhancedObject;
+  }
 }

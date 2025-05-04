@@ -169,14 +169,7 @@ function setupEventListeners(): void {
   // Receive Git objects from main process
   window.electron.ipcRenderer.on('git-objects', (plainObjects: any[]) => {
     // Reconstruct EnhancedGitObject instances from plain objects
-    gitObjects = plainObjects.map(obj => {
-      const enhancedObject = new EnhancedGitObject(obj, obj.contentString); // Pass the contentString
-      // Copy other properties that are not part of the base GitObject
-      enhancedObject.parsedCommit = obj.parsedCommit;
-      enhancedObject.parsedTree = obj.parsedTree;
-      enhancedObject.isBinary = obj.isBinary;
-      return enhancedObject;
-    });
+    gitObjects = plainObjects.map(obj => EnhancedGitObject.fromPlainObject(obj));
 
     if (gitObjects.length === 0) {
       repoStatus.textContent = 'No Git objects found.';
