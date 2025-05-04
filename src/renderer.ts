@@ -1,8 +1,9 @@
 // Type definition for our Electron bridge
 /// <reference path="./electron.d.ts" />
 
-import { parseTreeContent, formatCommitContent, extractDateFromAuthor, GitObject, TreeEntry } from './git-renderer-utils.js';
-
+import { parseTreeContent, formatCommitContent, extractDateFromAuthor } from './git-renderer-utils.js';
+import { GitObject, TreeEntry } from './git-shared-utils.js';
+import { EnhancedGitObject } from './git-utils.js';
 
 // Path module for handling file paths
 const path = {
@@ -169,7 +170,7 @@ function setupEventListeners(): void {
   });
 
   // Receive Git objects from main process
-  window.electron.ipcRenderer.on('git-objects', (objects: GitObject[]) => {
+  window.electron.ipcRenderer.on('git-objects', (objects: EnhancedGitObject[]) => {
     gitObjects = objects;
 
     if (objects.length === 0) {
@@ -203,7 +204,7 @@ function setupEventListeners(): void {
 
 
 // Display object details
-function showObjectDetails(object: GitObject): void {
+function showObjectDetails(object: EnhancedGitObject): void {
   let detailsHtml = `
     <h3>Object: ${object.hash}</h3>
     <div><strong>Type:</strong> <span class="${object.type}">${object.type}</span></div>
@@ -308,7 +309,7 @@ function escapeHtml(unsafe: string): string {
 
 
 // Render list of objects
-function renderObjectsList(objects: GitObject[]): void {
+function renderObjectsList(objects: EnhancedGitObject[]): void {
   const currentFilter = objectTypeFilter.value;
   const searchTerm = searchInput.value.toLowerCase().trim();
   const sortMethod = sortSelect.value;

@@ -1,21 +1,6 @@
 // This file will contain git-related utility functions for the renderer process.
 
-// Git object interface (needed for type hinting)
-export interface GitObject {
-  type: string;
-  hash: string;
-  size: number;
-  content: string;
-  parsedContent?: any;  // Pre-parsed content from server
-}
-
-// Tree entry interface (needed for type hinting)
-export interface TreeEntry {
-  mode: string;
-  type: string;
-  hash: string;
-  name: string;
-}
+import { GitObject, TreeEntry, parseCommitObject } from "./git-shared-utils.js";
 
 // Parse tree content for display
 export function parseTreeContent(content: string): TreeEntry[] {
@@ -113,36 +98,36 @@ export function formatCommitContent(content: string, parsedContent?: any): strin
   }
 
   // Fallback to the original parser if no pre-parsed content
-  const lines = content.split('\n');
+  const parsed = parseCommitObject(content);
   let html = '<div>';
 
-  // Extract headers and message
-  let i = 0;
-  for (; i < lines.length; i++) {
-    const line = lines[i];
-    if (line === '') break;
+  // Add header entries
+  for (const key in parsed) {
+    if (key === 'message') continue; // Handle message separately
 
-    const spaceIndex = line.indexOf(' ');
-    if (spaceIndex !== -1) {
-      const key = line.substring(0, spaceIndex);
-      const value = line.substring(spaceIndex + 1);
+    const value = parsed[key];
 
-      if (key === 'tree') {
-        html += `<div><strong>${key}:</strong> <span class="tree"><a href="#" class="hash-link" data-hash="${value}">${value}</a></span></div>`;
-      } else if (key === 'parent') {
-        html += `<div><strong>${key}:</strong> <span class="commit"><a href="#" class="hash-link" data-hash="${value}">${value}</a></span></div>`;
-      } else {
-        html += `<div><strong>${key}:</strong> ${value}</div>`;
-      }
+    if (Array.isArray(value)) {
+      // Handle arrays like multiple parents
+      value.forEach((item: string) => {
+        if (key === 'tree' || key === 'parent') {
+          html += `<div><strong>${key}:</strong> <span class="${key === 'tree' ? 'tree' : 'commit'}"><a href="#" class="hash-link" data-hash="${item}">${item}</a></span></div>`;
+        } else {
+          html += `<div><strong>${key}:</strong> ${item}</div>`;
+        }
+      });
+    } else if (key === 'tree' || key === 'parent') {
+      html += `<div><strong>${key}:</strong> <span class="${key === 'tree' ? 'tree' : 'commit'}"><a href="#" class="hash-link" data-hash="${value}">${value}</a></span></div>`;
+    } else {
+      html += `<div><strong>${key}:</strong> ${value}</div>`;
     }
   }
 
   html += '<hr>';
 
   // Add commit message
-  if (i < lines.length - 1) {
-    const message = lines.slice(i + 1).join('<br>');
-    html += `<div><strong>Message:</strong><br>${message}</div>`;
+  if (parsed.message) {
+    html += `<div><strong>Message:</strong><br>${(parsed.message as string).replace(/\n/g, '<br>')}</div>`;
   }
 
   html += '</div>';
