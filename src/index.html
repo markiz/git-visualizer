@@ -162,8 +162,59 @@
       background-color: #0b7dda;
     }
 
+    .select-repo-button {
+      margin-right: 10px;
+    }
+
     .filter-container {
       margin-bottom: 10px;
+    }
+
+    .filter-controls {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 10px;
+    }
+
+    .filter-sort-pickers {
+      display: flex;
+      align-items: center;
+      gap: 20px; /* Space between filter and sort */
+      margin-bottom: 10px;
+      width: 100%;
+    }
+
+    .filter-sort-pickers label {
+      margin-right: 5px; /* Space between label and select */
+    }
+
+    .filter-sort-pickers select {
+      flex-grow: 1; /* Allow select to take available space */
+    }
+
+    .search-block {
+      display: flex;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+
+    .search-bar {
+      padding: 5px;
+      flex-grow: 1;
+      margin-right: 5px;
+      flex-basis: 0;
+    }
+
+    .search-button {
+      margin-left: 0;
+      width: auto;
+    }
+
+    .hint-string {
+      font-size: 0.8em;
+      color: #666;
+      margin-top: 5px;
+      width: 100%;
     }
 
     @media (max-width: 768px) {
@@ -176,10 +227,36 @@
         flex: none; /* Remove flex grow/shrink on smaller screens */
         width: 100%; /* Take full width */
       }
-    }
 
-    .object-count {
-      font-weight: bold;
+      .objects-list {
+        max-height: 300px; /* Limit height for mobile */
+      }
+
+      .filter-sort-pickers {
+        flex-direction: column; /* Stack filter and sort on mobile */
+        gap: 10px; /* Adjust gap for stacking */
+      }
+
+      .filter-sort-pickers select {
+        width: 100%; /* Full width on mobile */
+      }
+
+      .search-block {
+        flex-direction: column; /* Stack search input and button on mobile */
+      }
+
+      .search-bar {
+        margin-right: 0; /* Remove right margin on mobile */
+        margin-bottom: 10px; /* Add bottom margin on mobile */
+      }
+
+      .search-button {
+        width: 100%; /* Full width on mobile */
+      }
+
+      .hint-string {
+        margin-top: 10px; /* Adjust top margin on mobile */
+      }
     }
   </style>
 </head>
@@ -191,14 +268,14 @@
       <div class="status-bar">
         <div id="repo-status">Checking repository...</div>
         <div>
-          <button id="select-repo-btn" style="margin-right: 10px;">Select Repository</button>
+          <button id="select-repo-btn" class="select-repo-button">Select Repository</button>
           <button id="refresh-btn">Refresh</button>
         </div>
       </div>
 
       <div class="filter-container">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-          <div>
+        <div class="filter-controls">
+          <div class="filter-sort-pickers">
             <label for="object-type-filter">Filter by type: </label>
             <select id="object-type-filter">
               <option value="all">All Types</option>
@@ -207,9 +284,7 @@
               <option value="commit">Commit</option>
               <option value="tag">Tag</option>
             </select>
-            <span id="object-count" class="object-count"></span>
-
-            <label for="sort-select" style="margin-left: 15px;">Sort by: </label>
+            <label for="sort-select">Sort by: </label>
             <select id="sort-select">
               <option value="date-desc">Newest First</option>
               <option value="none">None</option>
@@ -218,14 +293,13 @@
               <option value="size-desc">Size (Largest First)</option>
               <option value="size-asc">Size (Smallest First)</option>
             </select>
-            <div id="object-count" class="object-count"></div>
-            <div style="font-size: 0.8em; color: #666; margin-top: 5px;">Click or tab to lists, then use ↑/↓ keys to navigate</div>
           </div>
-          <div>
-            <input type="text" id="search-input" placeholder="Search by hash or content..." style="padding: 5px; width: 250px;">
-            <button id="search-btn" style="margin-left: 5px;">Search</button>
+          <div class="search-block">
+            <input type="text" id="search-input" class="search-bar" placeholder="Search by hash or content...">
+            <button id="search-btn">Search</button>
           </div>
         </div>
+        <div class="hint-string">Click or tab to lists, then use ↑/↓ keys to navigate</div>
       </div>
     </div>
 

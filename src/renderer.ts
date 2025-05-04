@@ -17,7 +17,6 @@ let objectDetails: HTMLElement;
 let refreshBtn: HTMLElement;
 let selectRepoBtn: HTMLElement;
 let objectTypeFilter: HTMLSelectElement;
-let objectCount: HTMLElement;
 let searchInput: HTMLInputElement;
 let searchBtn: HTMLElement;
 let sortSelect: HTMLSelectElement;
@@ -103,7 +102,6 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshBtn = document.getElementById('refresh-btn')!;
   selectRepoBtn = document.getElementById('select-repo-btn')!;
   objectTypeFilter = document.getElementById('object-type-filter') as HTMLSelectElement;
-  objectCount = document.getElementById('object-count')!;
   searchInput = document.getElementById('search-input') as HTMLInputElement;
   searchBtn = document.getElementById('search-btn')!;
   sortSelect = document.getElementById('sort-select') as HTMLSelectElement;
@@ -381,7 +379,6 @@ function renderObjectsList(objects: EnhancedGitObject[]): void {
   // Store the filtered list for keyboard navigation
   filteredObjectsList = filteredObjects;
 
-  objectCount.textContent = `(${filteredObjects.length} objects)`;
 
   if (filteredObjects.length === 0) {
     objectsList.innerHTML = '<p>No objects found.</p>';
