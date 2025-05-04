@@ -38,6 +38,7 @@ function createWindow() {
             parsedCommit: obj.parsedCommit,
             parsedTree: obj.parsedTree,
             isBinary: obj.isBinary,
+            contentString: obj.getContentString(), // Include the cached string
           }));
           mainWindow.webContents.send('git-objects', plainObjects);
         }
@@ -79,6 +80,7 @@ app.whenReady().then(() => {
           parsedCommit: obj.parsedCommit,
           parsedTree: obj.parsedTree,
           isBinary: obj.isBinary,
+          contentString: obj.getContentString(), // Include the cached string
         }));
         mainWindow.webContents.send('git-objects', plainObjects);
       }
@@ -102,6 +104,7 @@ ipcMain.on('refresh-git-objects', async () => {
         parsedCommit: obj.parsedCommit,
         parsedTree: obj.parsedTree,
         isBinary: obj.isBinary,
+        contentString: obj.getContentString(), // Include the cached string
       }));
       mainWindow.webContents.send('git-objects', plainObjects);
     } catch (error) {
@@ -140,6 +143,7 @@ ipcMain.on('select-repository', async () => {
             parsedCommit: obj.parsedCommit,
             parsedTree: obj.parsedTree,
             isBinary: obj.isBinary,
+            contentString: obj.getContentString(), // Include the cached string
           }));
           mainWindow.webContents.send('git-objects', plainObjects);
         } else {

@@ -98,11 +98,12 @@ export class EnhancedGitObject implements GitObject {
 
   private _cachedContentString: string | undefined;
 
-  constructor(gitObject: GitObject) {
+  constructor(gitObject: GitObject, contentString?: string) {
     this.type = gitObject.type;
     this.hash = gitObject.hash;
     this.size = gitObject.size;
     this.content = gitObject.content;
+    this._cachedContentString = contentString; // Initialize with provided string
   }
 
   getContentString(): string {
