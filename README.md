@@ -1,8 +1,10 @@
 # Git Visualizer
 
-This project is an Electron-based application designed to visualize the internal objects of a Git repository. It provides a graphical interface to explore commits, trees, blobs, and tags, allowing users to understand the structure and history of their repositories. The author had no prior experience with Electron before starting this project.
+This project is an Electron-based application designed to visualize the internal objects of a Git repository. It provides a graphical interface to explore commits, trees, blobs, and tags, allowing users to understand the structure and history of their repositories. 
 
-This is also a playground project for testing out AI agents.
+## Development process
+
+This is also a playground project for testing out AI agents, the author had no prior experience with Electron prior to starting this project.
 
 Initial bootstrap was done by Claude 3.7 (chat), with continued improvements via Cline (Gemini 2.5 Flash mostly). Note that user intervention was required once due to a wonky setup generated during the initial bootstrap that no AI could properly untangle.
 
@@ -14,6 +16,10 @@ Initial bootstrap was done by Claude 3.7 (chat), with continued improvements via
 - **Searching:** Search for objects by their hash or content.
 - **Object Details:** Examine the detailed content of each object, including parsed tree entries and commit information.
 - **Navigation:** Navigate through related objects (e.g., from a commit to its tree) via clickable hash links.
+
+## Screenshot
+
+![Main App Window](doc/screenshot.png)
 
 ## Setup and Launch
 
