@@ -135,6 +135,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Auto-select the first item when the objects list is focused and nothing is selected
+  objectsList.addEventListener('focus', () => {
+    if (selectedObjectHash === null && filteredObjectsList.length > 0) {
+      const firstObject = filteredObjectsList[0];
+      selectedObjectHash = firstObject.hash;
+
+      // Update UI selection
+      document.querySelectorAll('.object-item').forEach(el => {
+        el.classList.remove('selected');
+      });
+
+      const firstSelectedItem = document.querySelector(`.object-item[data-hash="${firstObject.hash}"]`);
+      if (firstSelectedItem) {
+        firstSelectedItem.classList.add('selected');
+        firstSelectedItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      // Show details for the first object
+      showObjectDetails(firstObject);
+    }
+  });
+
   // Initial state
   repoStatus.textContent = 'Loading repository...';
 
