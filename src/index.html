@@ -226,10 +226,12 @@
       .object-details {
         flex: none; /* Remove flex grow/shrink on smaller screens */
         width: 100%; /* Take full width */
+        box-sizing: border-box; /* Include padding and border in the element's total width */
       }
 
       .objects-list {
         max-height: 300px; /* Limit height for mobile */
+        margin-bottom: 20px; /* Add space below the list when stacked */
       }
 
       .filter-sort-pickers {
