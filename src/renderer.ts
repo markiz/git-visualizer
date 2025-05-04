@@ -2,7 +2,7 @@
 /// <reference path="./electron.d.ts" />
 
 import { parseTreeContent, formatCommitContent, extractDateFromAuthor } from './git-renderer-utils.js';
-import { GitObject, TreeEntry } from './git-shared-utils.js';
+import { GitObject, TreeEntry, ParsedCommitObject, ParsedTreeObject } from './git-shared-utils.js';
 import { EnhancedGitObject } from './git-utils.js';
 
 // Path module for handling file paths
@@ -214,7 +214,7 @@ function showObjectDetails(object: EnhancedGitObject): void {
 
   if (object.type === 'tree') {
     // Use parsed content from server if available
-    const entries = object.parsedContent?.entries || parseTreeContent(object.content);
+    const entries = object.parsedTree?.entries || parseTreeContent(object.content);
     detailsHtml += '<h4>Tree Entries:</h4><ul>';
 
     entries.forEach((entry: { type: string; name: string; mode: string; hash: string }) => {
@@ -229,7 +229,7 @@ function showObjectDetails(object: EnhancedGitObject): void {
 
     detailsHtml += '</ul>';
   } else if (object.type === 'commit') {
-    detailsHtml += formatCommitContent(object.content, object.parsedContent);
+    detailsHtml += formatCommitContent(object.content, object.parsedCommit);
   } else {
     detailsHtml += `
       <h4>Content:</h4>
@@ -336,10 +336,10 @@ function renderObjectsList(objects: EnhancedGitObject[]): void {
     switch (sortMethod) {
       case 'date-desc':
         filteredObjects.sort((a, b) => {
-          // Only for commit objects that have parsedContent
+          // Only for commit objects that have parsedCommit
           if (a.type === 'commit' && b.type === 'commit') {
-            const dateA = a.parsedContent?.author ? extractDateFromAuthor(a.parsedContent.author) : 0;
-            const dateB = b.parsedContent?.author ? extractDateFromAuthor(b.parsedContent.author) : 0;
+            const dateA = a.parsedCommit?.author ? extractDateFromAuthor(a.parsedCommit.author) : 0;
+            const dateB = b.parsedCommit?.author ? extractDateFromAuthor(b.parsedCommit.author) : 0;
             return dateB - dateA; // Newest first
           }
           // Keep non-commits at the end
@@ -351,10 +351,10 @@ function renderObjectsList(objects: EnhancedGitObject[]): void {
 
       case 'date-asc':
         filteredObjects.sort((a, b) => {
-          // Only for commit objects that have parsedContent
+          // Only for commit objects that have parsedCommit
           if (a.type === 'commit' && b.type === 'commit') {
-            const dateA = a.parsedContent?.author ? extractDateFromAuthor(a.parsedContent.author) : 0;
-            const dateB = b.parsedContent?.author ? extractDateFromAuthor(b.parsedContent.author) : 0;
+            const dateA = a.parsedCommit?.author ? extractDateFromAuthor(a.parsedCommit.author) : 0;
+            const dateB = b.parsedCommit?.author ? extractDateFromAuthor(b.parsedCommit.author) : 0;
             return dateA - dateB; // Oldest first
           }
           // Keep non-commits at the end
@@ -394,8 +394,8 @@ function renderObjectsList(objects: EnhancedGitObject[]): void {
     const isSelected = object.hash === selectedObjectHash;
     // Add date info for commits when sorting by date
     let dateInfo = '';
-    if (object.type === 'commit' && (sortMethod === 'date-desc' || sortMethod === 'date-asc') && object.parsedContent?.author) {
-      const date = extractDateFromAuthor(object.parsedContent.author);
+    if (object.type === 'commit' && (sortMethod === 'date-desc' || sortMethod === 'date-asc') && object.parsedCommit?.author) {
+      const date = extractDateFromAuthor(object.parsedCommit.author);
       if (date) {
         const formattedDate = new Date(date * 1000).toLocaleDateString();
         dateInfo = ` <span style="color:#888;">${formattedDate}</span>`;

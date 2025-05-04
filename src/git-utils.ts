@@ -3,14 +3,15 @@ import * as path from 'path';
 import * as zlib from 'zlib';
 import { promisify } from 'util';
 import { execSync } from 'child_process';
-import { GitObject, parseCommitObject } from "./git-shared-utils.js";
+import { GitObject, parseCommitObject, ParsedCommitObject, ParsedTreeObject } from "./git-shared-utils.js";
 
 // Promisify zlib functions
 const inflateAsync = promisify(zlib.inflate);
 
 // Enhanced git object with resolved references
 export interface EnhancedGitObject extends GitObject {
-  parsedContent?: any;  // For trees and commits, contains parsed content
+  parsedCommit?: ParsedCommitObject;
+  parsedTree?: ParsedTreeObject;
 }
 
 // Check if the current directory is a Git repository
@@ -106,41 +107,6 @@ export async function getAllObjects(dir: string = process.cwd()): Promise<Enhanc
     }
   }
 
-  // Also load packed objects
-  try {
-    // Get a list of all objects using git command
-    const allObjectsOutput = execSync('git rev-list --objects --all', { cwd: dir }).toString();
-    const allHashesSet = new Set(allObjectsOutput.split('\n')
-      .map(line => line.trim().split(' ')[0])
-      .filter(hash => hash && hash.length === 40));
-
-    // Add objects from git command that weren't in the loose objects
-    for (const hash of allHashesSet) {
-      if (!objectMap.has(hash)) {
-        try {
-          // Use git cat-file to get object info
-          const typeOutput = execSync(`git cat-file -t ${hash}`, { cwd: dir }).toString().trim();
-          const sizeOutput = execSync(`git cat-file -s ${hash}`, { cwd: dir }).toString().trim();
-          const contentOutput = execSync(`git cat-file -p ${hash}`, { cwd: dir }).toString();
-
-          const enhancedObject: EnhancedGitObject = {
-            type: typeOutput,
-            hash: hash,
-            size: parseInt(sizeOutput, 10),
-            content: contentOutput
-          };
-
-          objects.push(enhancedObject);
-          objectMap.set(hash, enhancedObject);
-        } catch (error) {
-          console.error(`Error reading packed object ${hash}:`, error);
-        }
-      }
-    }
-  } catch (error) {
-    console.error('Error reading packed objects:', error);
-  }
-
   // Second pass: parse and enhance objects with pre-processed content
   for (const object of objects) {
     if (object.type === 'tree') {
@@ -162,13 +128,13 @@ export async function getAllObjects(dir: string = process.cwd()): Promise<Enhanc
             return { mode, type, hash, name };
           });
 
-        object.parsedContent = { entries };
+        object.parsedTree = { entries };
       } catch (error) {
         console.error(`Error parsing tree object ${object.hash}:`, error);
       }
     } else if (object.type === 'commit') {
       // Pre-parse commit data
-      object.parsedContent = parseCommitObject(object.content);
+      object.parsedCommit = parseCommitObject(object.content);
     }
   }
 

@@ -16,10 +16,28 @@ export interface TreeEntry {
   name: string;
 }
 
+// Parsed commit object interface
+export interface ParsedCommitObject {
+  tree: string;
+  parent: string | string[];
+  author: string;
+  committer: string;
+  message: string;
+}
+
+// Parsed tree object interface
+export interface ParsedTreeObject {
+  entries: TreeEntry[];
+}
+
 // Parse a Git commit object into a more usable format
-export function parseCommitObject(content: string): Record<string, string | string[]> {
+export function parseCommitObject(content: string): ParsedCommitObject {
   const lines = content.split('\n');
-  const result: Record<string, string | string[]> = {
+  const result: ParsedCommitObject = {
+    tree: '', // Initialize with default values
+    parent: [], // Initialize as array for potential multiple parents
+    author: '',
+    committer: '',
     message: ''
   };
 
@@ -34,18 +52,31 @@ export function parseCommitObject(content: string): Record<string, string | stri
       const key = line.substring(0, spaceIndex);
       const value = line.substring(spaceIndex + 1);
 
-      // Handle parent commits (can be multiple)
-      if (key === 'parent') {
-        if (!result.parent) {
-          result.parent = [value];
-        } else if (Array.isArray(result.parent)) {
-          (result.parent as string[]).push(value);
+      // Assign parsed values to the result object
+      if (key === 'tree') {
+        result.tree = value;
+      } else if (key === 'parent') {
+        // Handle parent commits (can be multiple)
+        if (!Array.isArray(result.parent)) {
+           result.parent = [result.parent as string]; // Convert single parent to array if needed
         }
-      } else {
-        result[key] = value;
+        (result.parent as string[]).push(value);
+      } else if (key === 'author') {
+        result.author = value;
+      } else if (key === 'committer') {
+        result.committer = value;
       }
+      // Ignore other header keys for now as per ParsedCommitObject definition
     }
   }
+
+  // Ensure parent is an array if only one parent was found
+  if (!Array.isArray(result.parent) && result.parent !== '') {
+      result.parent = [result.parent];
+  } else if (result.parent === '') {
+      result.parent = []; // Ensure it's an empty array if no parents found
+  }
+
 
   // Parse commit message
   if (i < lines.length - 1) {
