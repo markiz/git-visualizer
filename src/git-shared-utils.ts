@@ -5,7 +5,7 @@ export interface GitObject {
   type: string;       // 'blob', 'tree', 'commit', or 'tag'
   hash: string;       // SHA-1 hash
   size: number;       // Size in bytes
-  content: string;    // Raw content as string
+  content: Buffer;    // Raw content as Buffer
 }
 
 // Tree entry interface

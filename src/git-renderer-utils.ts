@@ -3,7 +3,7 @@
 import { GitObject, TreeEntry, parseCommitObject, ParsedCommitObject } from "./git-shared-utils.js";
 
 // Parse tree content for display
-export function parseTreeContent(content: string): TreeEntry[] {
+export function parseTreeContent(content: Buffer): TreeEntry[] {
   try {
     const entries: TreeEntry[] = [];
     let pos = 0;
@@ -12,26 +12,17 @@ export function parseTreeContent(content: string): TreeEntry[] {
       const spaceIndex = content.indexOf(' ', pos);
       if (spaceIndex === -1) break;
 
-      const mode = content.substring(pos, spaceIndex);
+      const mode = content.toString('utf8', pos, spaceIndex);
       pos = spaceIndex + 1;
 
-      const nullIndex = content.indexOf('\0', pos);
+      const nullIndex = content.indexOf(0, pos); // Find null byte in buffer
       if (nullIndex === -1) break;
 
-      const name = content.substring(pos, nullIndex);
+      const name = content.toString('utf8', pos, nullIndex);
       pos = nullIndex + 1;
 
       // Extract 20-byte SHA-1 and convert to hex
-      // Create a binary-to-hex array manually
-      const hashBytes: number[] = [];
-      for (let j = 0; j < 20; j++) {
-        // Get byte value safely
-        const charCode = content.charCodeAt(pos + j);
-        // Use bitwise AND to get the lower 8 bits only
-        hashBytes.push(charCode & 0xFF);
-      }
-      // Convert to hex string
-      const hash = hashBytes.map(b => b.toString(16).padStart(2, '0')).join('');
+      const hash = content.slice(pos, pos + 20).toString('hex');
       pos += 20;
 
       // Determine type from mode

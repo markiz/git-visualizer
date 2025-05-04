@@ -12,6 +12,7 @@ const inflateAsync = promisify(zlib.inflate);
 export interface EnhancedGitObject extends GitObject {
   parsedCommit?: ParsedCommitObject;
   parsedTree?: ParsedTreeObject;
+  isBinary?: boolean; // Add isBinary flag
 }
 
 // Check if the current directory is a Git repository
@@ -60,33 +61,69 @@ export async function readObject(hash: string, dir: string = process.cwd()): Pro
     // Read and decompress the object
     const compressed = fs.readFileSync(objectPath);
     const buffer = await inflateAsync(compressed);
-    const content = buffer.toString('utf8');
 
     // Find the null byte that separates header from content
-    const nullByteIndex = content.indexOf('\0');
+    const nullByteIndex = buffer.indexOf(0); // Find null byte in buffer
     if (nullByteIndex === -1) {
       throw new Error('Invalid Git object format');
     }
 
     // Parse header (format: "type size\0content")
-    const header = content.substring(0, nullByteIndex);
+    const header = buffer.toString('utf8', 0, nullByteIndex);
     const [type, sizeStr] = header.split(' ');
     const size = parseInt(sizeStr, 10);
 
-    // Extract actual content
-    const objectContent = content.substring(nullByteIndex + 1);
+    // Extract actual content as a Buffer
+    const objectContent = buffer.slice(nullByteIndex + 1);
 
     return {
       type,
       hash,
       size,
-      content: objectContent,
+      content: objectContent, // Store content as Buffer
     };
   } catch (error) {
     console.error(`Error reading Git object ${hash}:`, error);
     return null;
   }
 }
+
+// Heuristic to guess if a blob is binary
+function isBinaryBlob(buffer: Buffer): boolean {
+  const size = buffer.length;
+  if (size === 0) {
+    return false; // Empty files are not binary
+  }
+
+  const maxBytesToScan = Math.min(size, 8000);
+  let nullByteCount = 0;
+  let printableCharCount = 0;
+
+  for (let i = 0; i < maxBytesToScan; i++) {
+    const byte = buffer[i];
+
+    if (byte === 0) {
+      // Found a NUL byte, it's likely binary
+      return true;
+    }
+
+    // Check for printable characters (ASCII 32-126, plus common whitespace)
+    if ((byte >= 32 && byte <= 126) || byte === 9 || byte === 10 || byte === 13) {
+      printableCharCount++;
+    }
+  }
+
+  // If no NUL bytes, check the ratio of printable characters
+  // A low ratio of printable characters suggests binary data
+  const nonPrintableCharCount = maxBytesToScan - printableCharCount;
+  const printableRatio = printableCharCount / maxBytesToScan;
+
+  // Define a threshold for the printable ratio (e.g., less than 10% printable)
+  const PRINTABLE_THRESHOLD = 0.1;
+
+  return printableRatio < PRINTABLE_THRESHOLD;
+}
+
 
 // Get all Git objects with their details and resolved references
 export async function getAllObjects(dir: string = process.cwd()): Promise<EnhancedGitObject[]> {
@@ -102,12 +139,16 @@ export async function getAllObjects(dir: string = process.cwd()): Promise<Enhanc
     const object = await readObject(hash, dir);
     if (object) {
       const enhancedObject: EnhancedGitObject = { ...object };
+      // For blob objects, check if they are binary
+      if (enhancedObject.type === 'blob') {
+        enhancedObject.isBinary = isBinaryBlob(enhancedObject.content as Buffer);
+      }
       objects.push(enhancedObject);
       objectMap.set(hash, enhancedObject);
     }
   }
 
-  // Second pass: parse and enhance objects with pre-processed content
+  // Second pass: parse and enhance objects with pre-processed content and detect binary blobs
   for (const object of objects) {
     if (object.type === 'tree') {
       // Pre-parse tree entries on the server side
@@ -134,7 +175,8 @@ export async function getAllObjects(dir: string = process.cwd()): Promise<Enhanc
       }
     } else if (object.type === 'commit') {
       // Pre-parse commit data
-      object.parsedCommit = parseCommitObject(object.content);
+      // Ensure content is treated as string for parsing
+      object.parsedCommit = parseCommitObject(object.content.toString('utf8'));
     }
   }
 

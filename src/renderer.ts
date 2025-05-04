@@ -212,7 +212,8 @@ function showObjectDetails(object: EnhancedGitObject): void {
 
   if (object.type === 'tree') {
     // Use parsed content from server if available
-    const entries = object.parsedTree?.entries || parseTreeContent(object.content);
+    // Ensure content is a Buffer before passing to parseTreeContent
+    const entries = object.parsedTree?.entries || parseTreeContent(object.content as Buffer);
     detailsHtml += '<h4>Tree Entries:</h4><ul>';
 
     entries.forEach((entry: { type: string; name: string; mode: string; hash: string }) => {
@@ -227,11 +228,21 @@ function showObjectDetails(object: EnhancedGitObject): void {
 
     detailsHtml += '</ul>';
   } else if (object.type === 'commit') {
-    detailsHtml += formatCommitContent(object.content, object.parsedCommit);
-  } else {
+    // Ensure content is a string before passing to formatCommitContent
+    detailsHtml += formatCommitContent(object.content.toString('utf8'), object.parsedCommit);
+  } else if (object.type === 'blob' && object.isBinary) {
+    // Display placeholder for binary blobs
     detailsHtml += `
       <h4>Content:</h4>
-      <pre>${escapeHtml(object.content)}</pre>
+      <p>Binary object - content not displayed.</p>
+    `;
+  }
+  else {
+    // Display content for non-binary blobs and other types
+    // Ensure content is a string before escaping and displaying
+    detailsHtml += `
+      <h4>Content:</h4>
+      <pre>${escapeHtml(object.content.toString('utf8'))}</pre>
     `;
   }
 
@@ -322,8 +333,8 @@ function renderObjectsList(objects: EnhancedGitObject[]): void {
     filteredObjects = filteredObjects.filter(obj =>
       // Search by hash
       obj.hash.toLowerCase().includes(searchTerm) ||
-      // Search by content (limited for performance)
-      obj.content.toLowerCase().includes(searchTerm)
+      // Search by content (limited for performance) - convert Buffer to string for search
+      (obj.content as Buffer).toString('utf8').toLowerCase().includes(searchTerm)
     );
   }
 
